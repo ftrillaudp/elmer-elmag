@@ -1,0 +1,10 @@
+! ----- names for bodies -----
+$ air = 1
+$ core = 2
+$ HV = 3
+$ LV = 4
+! ----- names for boundaries -----
+$ airboundary = 5
+$ convectiveboundary = 6
+$ bnry7 = 7
+$ bnry8 = 8

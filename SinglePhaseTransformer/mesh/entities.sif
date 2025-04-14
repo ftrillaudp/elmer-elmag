@@ -1,0 +1,34 @@
+!------ Skeleton for body section -----
+Body 1
+  Name = air
+End
+
+Body 2
+  Name = core
+End
+
+Body 3
+  Name = HV
+End
+
+Body 4
+  Name = LV
+End
+
+!------ Skeleton for boundary section -----
+Boundary Condition 1
+  Name = airboundary
+End
+
+Boundary Condition 2
+  Name = convectiveboundary
+End
+
+Boundary Condition 3
+  Name = bnry7
+End
+
+Boundary Condition 4
+  Name = bnry8
+End
+
