@@ -32,3 +32,4 @@ Core:
 2. ```python ocrun.py```: run the open-circuit transient case
 3. ```python frequency.py```: run the frequency load model
 
+Issue with current density: no sinusoidal form as expected in open-circuit test and current in same direction in frequency domain results.
