@@ -1,7 +1,0 @@
-$ apertureheight =  0.145
-$ coilHVthickness = 0.02
-$ coilLVthickness = 0.022
-$ coilheight = 0.9 * apertureheight
-$ Ae_LV = coilLVthickness * coilheight
-$ Ae_HV = coilHVthickness * coilheight
-$ N_LV = 7
