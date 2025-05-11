@@ -28,7 +28,7 @@ Core:
 
 # Run the codes
 
-1. ´´´python run.py´´´: run the short-circuit and load transient case
-2. ´´´python ocrun.py´´´: run the open-circuit transient case
-3. ´´´python frequency.py´´´: run the frequnecy load model
+1. ```python run.py```: run the short-circuit and load transient case
+2. ```python ocrun.py```: run the open-circuit transient case
+3. ```python frequency.py```: run the frequency load model
 
