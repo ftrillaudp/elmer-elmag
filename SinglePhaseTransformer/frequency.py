@@ -30,8 +30,8 @@ cmd_solver = "ElmerSolver frequency.sif"
 
 st = time.time()
 
-print("Mesh generation")
-os.system(cmd_msh)
+#print("Mesh generation")
+#os.system(cmd_msh)
 
 print("Solver")
 os.system(cmd_solver)
