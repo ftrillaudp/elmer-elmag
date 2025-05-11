@@ -165,7 +165,7 @@ Solver 3
 
   Vtu Format = Logical True
   Gmsh Format = Logical True
-  Binary Output = Logical True
+  Binary Output = Logical False
   Discontinuous Bodies = Logical True
 
   Output File Name = File "case"
