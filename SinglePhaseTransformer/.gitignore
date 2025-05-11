@@ -18,7 +18,6 @@
 **/*.jpeg
 **/result.dat
 **/results.dat
-**/*.dat
 **/*.med
 **/*.vtk
 **/*.unv
@@ -39,7 +38,6 @@
 **/RESU/*.png
 **/*.plk
 **/*log*
-**/RESU/*.dat
 **/RESU/*.txt
 **/RESU/*.pos
 **/*.pkl
