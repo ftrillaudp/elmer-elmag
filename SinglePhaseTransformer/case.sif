@@ -14,7 +14,7 @@ $ f = 60.0
 !--- Pulsation
 $ w = 2.0 * pi * f
 !--- Number of periods
-$ nbp = 2.0
+$ nbp = 1.0
 !--- Final time
 $ t_fin = nbp / f
 !--- time step:
