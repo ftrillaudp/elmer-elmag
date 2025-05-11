@@ -13,14 +13,6 @@ Include circuit.definitions
 $ f = 60.0
 !--- Pulsation
 $ w = 2.0 * pi * f
-!--- Number of periods
-$ nbp = 2.0
-!--- Final time
-$ t_fin = nbp / f
-!--- time step:
-$ dt = 1e-4
-!-- Number of time setps
-$ nbt = floor(t_fin/dt)
 
 
 Header
@@ -35,19 +27,15 @@ Simulation
   Coordinate System = String "Cartesian 3D"
   Coordinate Mapping(3) = 1 2 3
 
-  Simulation Type = String "Transient"
+  Simulation Type = String "Steady state"
   Steady State Max Iterations = 1
   !Steady State Min Iterations = 2
 
-  TimeStepping Method = BDF
-  BDF Order = 1
+  Angular Frequency = $ w
 
-  Timestep Sizes(1) = Real $ dt
-  TimeStep Intervals(1) = Integer $ nbt
-  Output Intervals(1) = Integer 1
+  Output File = "frequency.dat"
 
-  Output File = "result.dat"
-
+  Output Intervals = 0
   Max Output Level = 10
 End
 
@@ -107,7 +95,7 @@ Material 1
   Name = "Cu"
   Relative Permeability = Real 1.0
   Relative Permittivity = Real 1.0
-  Electric Conductivity = Real 1e6
+  Electric Conductivity = Real 5.96e7
 
   Density = Real 8960.0
   Heat Conductivity = 100.0
@@ -116,13 +104,14 @@ End
 
 Material 2
   Name = "Iron"
-  Relative Permeability = Real 600.0
+  !Relative Permeability = Real 1500.0
   Relative Permittivity = Real 1.0
+  Electric Conductivity = Real 1000.0
 
-  !H-B Curve = Variable "dummy"
-  !  Real Cubic Monotone
-  !      Include ./DATA/curve_BH-CERN.dat
-  !  End
+  H-B Curve = Variable "dummy"
+    Real Cubic Monotone
+        Include ./data/BHM1960Hz.dat
+    End
 
   Density = Real 7860.0
   Heat Conductivity = 100.0
@@ -141,12 +130,10 @@ End
 Body Force 1
   Name = "Sources"
   !--- The only place to define the sources for all the electric circuits
+  !--- In frequency domain model, it is important to write: S Re = Real XXX (here "Real" matters!)
   !--- Primary voltage (S1)
-  S1_Source = Variable time; Real MATC "S1*sin(w*tx[0])"
-  
-  !Current Density 1 = Variable time, CoilCurrent e 1; Real MATC "tx[1]*sin(w*tx[0])"
-  !Current Density 2 = Variable time, CoilCurrent e 2; Real MATC "tx[1]*sin(w*tx[0])"
-  !Current Density 3 = Variable time, CoilCurrent e 3; Real MATC "tx[1]*sin(w*tx[0])"
+  S1_Source Re = Real 100.0
+  S1_Source Im = Real 0.0
 End
 
 
@@ -192,18 +179,23 @@ Component 2
 End
 
 
-!!! INITIAL AND BOUNDARY CONDITIONS !!!
+!!! BOUNDARY CONDITIONS !!!
 Initial Condition 1
-  Name = "Initial state"
-  A {e} = Real 0.0
-  A = Real 0.0
+  Name = "Initial condition"
+   A re {e} = Real 0.0
+   A im {e} = Real 0.0
+   A re = Real 0.0
+   A im = Real 0.0
 End
 
 Boundary Condition 1
-  Name = "Air_boundary"
+  Name = "Far field"
   Target Boundaries(1) = $ airboundary
-  A {e} = real 0
-  A = real 0
+  !Infinity BC = True
+  A re {e} = Real 0.0
+  A im {e} = Real 0.0
+  A re = Real 0.0
+  A im = Real 0.0
 End
 
 
@@ -249,7 +241,7 @@ End
 Solver 2 !--- CircuitsAndDynamics: External electrical circuit
    Exec Solver = Always
    Equation = Circuits
-   Procedure = "CircuitsAndDynamics" "CircuitsAndDynamics"
+   Procedure = "CircuitsAndDynamics" "CircuitsAndDynamicsHarmonic"
    Variable = X
    No Matrix = Logical True
 End
@@ -258,8 +250,10 @@ End
 Solver 3  !---- MagnetoDynamics, WhitneyAVSolver: A-V solver
    Exec Solver = Always
    Equation = "MGDynamics"
-   Variable = "A"
-   Procedure = "MagnetoDynamics" "WhitneyAVSolver"
+   Variable = "A[A re:1 A im:1]"
+   Procedure = "MagnetoDynamics" "WhitneyAVHarmonicSolver"
+   
+   Angular Frequency = $ w
 
    Fix Input Current Density = False
    
@@ -323,7 +317,7 @@ Solver 5 !--- ResultOuputSolve, ResultOuputSolver: save computed fields
    Vtu Format = Logical True
    Binary Output = Logical False
 
-   Output File Name = File "case"
+   Output File Name = File "frequency"
 
 ! This makes it easier to pick any given piece
 !   Vtu Part Collection = True
