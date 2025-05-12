@@ -1,0 +1,212 @@
+! F. Trillaud <ftrillaudp@gmail.com>
+! Created on 08/10/2020
+
+Include "./MESH/mesh.names"
+Include "./Gmsh/coil.dat"
+
+$ Je = 1e6
+
+Header
+  CHECK KEYWORDS Warn
+  Mesh DB "." "MESH"
+  Results Directory "RESU"
+End
+
+Simulation
+  Coordinate System = String "Cartesian 3D"
+  Coordinate Mapping(3) = 1 2 3
+
+  Simulation Type = String "Transient"
+
+  Steady State Max Iterations = 1
+
+  TimeStepping Method = BDF
+  BDF Order = 2
+
+  Timestep Sizes(1) = Real 0.001
+  TimeStep Intervals(1) = Integer 100
+  Output Intervals(1) = Integer 1
+
+  Max Output Level = 5
+End
+
+! -- CONSTANTS --
+Constants
+  Gravity(4) = 0 0 -1 9.82
+  Stefan Boltzmann = 5.67e-08
+  Permittivity of Vacuum = 8.8542e-12
+  Permeability of Vacuum = 1.256e-6
+  Boltzmann Constant = 1.3807e-23
+  Unit Charge = 1.602e-19
+End
+
+
+! -- BODIES --
+Body 1
+  Name = "Coil"
+  Target Bodies(1) = $ coil
+  Equation = 1
+  Material = 1
+  Initial Condition = 1
+  Body Force =  1
+End
+
+Body 2
+  Name = "air"
+  Target Bodies(1) = $ air
+  Equation = 1
+  Material = 2
+  Initial Condition = 1
+End
+
+! -- MATERIAL PROPERTIES --
+Material 1
+  Name = "Cu"
+  Relative Permeability = Real 1.0
+  Electric Conductivity = Real 5.96e7
+End
+
+Material 2
+  Name = "Air"
+  Relative Permeability = Real 1.0
+  Electric Resistivity = Real 1.0
+End
+
+
+!!! BODY FORCES !!!
+Body Force 1
+  Name = "Source 1"
+  Current Density 1 = Variable Coordinate 1, Coordinate 2; Real lua "-Je*sin(math.atan2(tx[1],tx[0]))"
+  Current Density 2 = Variable Coordinate 1, Coordinate 2; Real lua "Je*cos(math.atan2(tx[1],tx[0]))"
+  Current Density 3 = Real 0.0
+End
+
+
+!-- BOUNDARY CONDITIONS --
+Boundary Condition 1
+  Name = "Air boundary"
+  Target Boundaries(1) = $ airboundary
+  H {e} 1 = Real 0.0
+  H {e} 2 = Real 0.0
+  H {e} 3 = Real 0.0
+End
+
+!-- INITIAL CONDITIONS --
+Initial Condition 1
+  Name = "Initial state: magnetodynamics"
+  H {e} 1 = Real 0.0
+  H {e} 2 = Real 0.0
+  H {e} 3 = Real 0.0
+End
+
+
+!-- EQUATIONS --
+Equation 1
+  Name = "H Whitney"
+  Active Solvers(4) = 1 2 3 4
+End
+
+
+!!! SOLVERS !!!
+Solver 1  !--- CoilSolver: Current density in closed coil
+  Exec Solver = Before All
+  Equation = "CoilSolver"
+  Procedure = "CoilSolver" "CoilSolver"
+
+  Steady State Convergence Tolerance = 1.0e-6 ! related to the Steady State Iterations (see Simulation)
+
+  Linear System Solver = "Iterative"
+  Linear System Preconditioning = ILU1
+  Linear System Max Iterations = 500
+  Linear System Convergence Tolerance = 1.0e-8 ! to get proper current density flow
+  Linear System Iterative Method = BiCGStab
+  Linear System Residual Output = 1
+
+  Normalize Coil Current = Logical True ! necessary to have a uniform current across the coil
+  Fix Input Current Density = Logical True
+  Nonlinear System Consistent Norm = Logical True
+  Coil Closed = Logical True
+  Narrow Interface = Logical True
+
+  Save Coil Set = Logical True
+  Save Coil Index = Logical True
+  
+  Calculate Elemental Fields = Logical True
+End
+
+Solver 2
+  Equation = "H formulation"
+  Variable = H
+
+  Optimize Bandwidth = True
+  Linear System Symmetric = False
+  Procedure = "./Fortran90/hWhitneySolver"  "HWhitneySolver"
+
+  Quadratic Approximation = Logical False
+
+  ! Linear System Scaling = True
+  ! Linear System Solver = String "Iterative"
+  ! Linear System Iterative Method = String "bicgstabl"
+  ! BiCGstabl polynomial degree = Integer 6
+  ! Linear System Preconditioning = String "none"
+  ! Linear System ILUT Tolerance = Real 1e-4
+  ! Linear System Max Iterations = 1000
+  ! Linear System Convergence Tolerance = 1.0e-4
+  ! Linear System Abort Not Converged = True
+  ! Linear System Residual Output = 1
+
+  Linear System Solver = Direct
+  Linear System Direct Method = MUMPS
+
+  Nonlinear System Convergence Tolerance = 1.0e-4
+  Nonlinear System Max Iterations = 1
+  Nonlinear System Newton After Iterations = 3
+  Nonlinear System Newton After Tolerance = 1.0e-3
+  Nonlinear System Relaxation Factor = 1
+
+! Only global matrices work for constant bulk matrix currently.
+! Constant bulk matrix saves ~20% for the test problem.
+  Use Global Mass Matrix = True
+  Constant Bulk Matrix = True
+End
+
+Solver 3
+  Equation = "calcfields"
+
+  Procedure = "./Fortran90/hWhitneySolver" "HWhitneyCalcFields"
+  Linear System Symmetric = False
+
+  Calculate Time Derivatives = Logical False
+  Calculate Elemental Fields = Logical True
+  Calculate Nodal Fields = Logical True
+  Calculate Current Density = Logical True
+
+  Steady State Convergence Tolerance = 1
+  Linear System Solver = "Iterative"
+  Linear System Preconditioning = None
+  Linear System Residual Output = 10
+  Linear System Max Iterations = 1000
+  Linear System Iterative Method = CG
+  Linear System Convergence Tolerance = 1.0e-8
+
+! Not much effect as we need to assembly the many r.h.s vectors anyways
+  Constant Bulk Matrix = True
+
+  Exec Solver = before saving
+End
+
+
+Solver 4
+  Exec Solver = After timestep
+  Equation = "ResultOutput"
+  Procedure = "ResultOutputSolve" "ResultOutputSolver"
+
+  Vtu Format = Logical True
+  Gmsh Format = Logical True
+  Binary Output = Logical False
+  Discontinuous Bodies = Logical True
+
+  Output File Name = File "case"
+
+  Save Geometry Ids = Logical True ! to get the identifying numbers for paraview visualization (Threshold on GeomtryIds)
+End
