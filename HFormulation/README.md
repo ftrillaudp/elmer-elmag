@@ -20,12 +20,16 @@ The current density $`\mathbf{j}`$ is computed from the magnetic field from: $`\
 
 Using Whitney elements (edge elements), the non-conductive domains $`\Omega_{cc}`$ should have a fictitious electrical resistivity. Here, we used $`\rho =1~\Omega.`$m in the non-conductive domain. We assumed that the electrical material has a resistivity several orders of magnitude lower.
 
-## Case study
+## Case study 1
 
-The case study is the induction of current in a conductive bulk. At the boundary of the universe, the magnetic field $`\mathbf{h}`$ is given by an impressed external field $`\mathbf{h}_{ext}`$ so that:
+The first case study is the induction of current in a conductive bulk. At the boundary of the universe, the magnetic field $`\mathbf{h}`$ is given by an impressed external field $`\mathbf{h}_{ext}`$ so that:
 ```math
 \mathbf{h}|_{\Gamma} = \mathbf{h}_{ext}\left(t\right)
 ```
+
+## Case study 2
+
+The second case study is a coil with impressed current. It is necessary to modify the solver to include the coil solver.
 
 
 
