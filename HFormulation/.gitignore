@@ -1,4 +1,5 @@
-**/RESU
+**/RESU/*
+**/Gmsh/*.msh
 *.msh
 *~
 tags
