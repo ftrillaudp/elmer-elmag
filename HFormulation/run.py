@@ -25,7 +25,8 @@ filename = "mesh"
 # print("File name:", filename)
 
 # Commands
-cmd_msh = "ElmerGrid 14 2 "+filename+".msh -out MESH"
+cmd_msh = "python ./Gmsh/coil.py; ElmerGrid 14 2 ./Gmsh/"+filename+".msh -out MESH"
+cmd_compile = "bash compileUDF.sh"
 cmd_solver = "ElmerSolver coil.sif"
 
 st = time.time()
@@ -34,6 +35,7 @@ print("Mesh generation")
 os.system(cmd_msh)
 
 print("Solver")
+os.system(cmd_compile)
 os.system(cmd_solver)
 
 et = time.time()
