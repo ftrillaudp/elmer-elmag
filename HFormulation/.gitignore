@@ -1,0 +1,70 @@
+**/RESU
+*.msh
+*~
+tags
+*.o
+*.swp
+*.so
+*.dll
+*.a
+*.so.*
+*.dylib
+*.out
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+res/
+### macOS ###
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+# Thumbnails
+._*
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+### Windows ###
+# Windows thumbnail cache files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+# Dump file
+*.stackdump
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+# Windows shortcuts
+*.lnk
+# paraview results
+*.vtu
+*.pvd
+TEST.PASSED
+# LaTeX output
+*.aux
+*.log
+*.gz
+*.out
+*.idx
+*.toc
+# IDE stuff
+*.vscode
