@@ -10,9 +10,9 @@ Include circuit.definitions
 !!! PARAMETERS !!!
 
 !--- frequency
-$ f = 60.0
+$ freq = 60.0
 !--- Pulsation
-$ w = 2.0 * pi * f
+$ w = 2.0 * pi * freq
 
 
 Header
@@ -33,7 +33,7 @@ Simulation
 
   Angular Frequency = $ w
 
-  Output File = "frequency.dat"
+  Output File = "fresults.dat"
 
   Output Intervals = 0
   Max Output Level = 10
@@ -69,7 +69,6 @@ Body 2
   Equation = 1
   Material = 1
   Initial Condition = 1
-  !Body Force = 1
 End
 
 !--- Be aware that all the non inductors should not use the CoilSolver.
@@ -104,7 +103,6 @@ End
 
 Material 2
   Name = "Iron"
-  !Relative Permeability = Real 1500.0
   Relative Permittivity = Real 1.0
   Electric Conductivity = Real 1000.0
 
@@ -123,7 +121,6 @@ Material 3
   Relative Permeability = Real 1.0
   Relative Permittivity = Real 1.0
 End
-
 
 
 !!! BODY FORCES !!!
@@ -202,7 +199,7 @@ End
 !!! EQUATIONS !!!
 Equation 1
   Name = "Multiphysics for inductors"
-  Active Solvers(6) = 1 2 3 4 5 6
+  Active Solvers(7) = 1 2 3 4 5 6 7
 End
 
 Equation 2
@@ -229,6 +226,7 @@ Solver 1  !--- CoilSolver: Current density in closed coil
   Normalize Coil Current = Logical True ! necessary to have a uniform current across the coil
   Fix Input Current Density = Logical True
   Nonlinear System Consistent Norm = Logical True
+  
   Coil Closed = Logical True
   Narrow Interface = Logical True
 
@@ -245,7 +243,6 @@ Solver 2 !--- CircuitsAndDynamics: External electrical circuit
    Variable = X
    No Matrix = Logical True
 End
-
 
 Solver 3  !---- MagnetoDynamics, WhitneyAVSolver: A-V solver
    Exec Solver = Always
@@ -329,5 +326,12 @@ Solver 6  !--- CircuitsAndDynamics, CircuitsOutput: save data from circuit
    Exec Solver = Always
    Equation = Circuits Output
    Procedure = "CircuitsAndDynamics" "CircuitsOutput"
+End
+
+Solver 7  !--- SaveData, SaveScalars: write circuit variables to file
+   Exec Solver = After timestep
+   Equation = "sv"
+   Procedure = "SaveData" "SaveScalars"
+   Filename = "fcircuit.dat"
 End
 

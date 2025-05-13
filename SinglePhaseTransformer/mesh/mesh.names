@@ -5,6 +5,7 @@ $ HV = 3
 $ LV = 4
 ! ----- names for boundaries -----
 $ airboundary = 5
-$ convectiveboundary = 6
-$ bnry7 = 7
-$ bnry8 = 8
+$ coresurf = 6
+$ HVsurf = 7
+$ LVsurf = 8
+$ bnry9 = 9

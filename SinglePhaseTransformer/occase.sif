@@ -10,16 +10,16 @@ Include occircuit.definitions
 !!! PARAMETERS !!!
 
 !--- frequency
-$ f = 60.0
+$ freq = 60.0
 !--- Pulsation
-$ w = 2.0 * pi * f
+$ w = 2.0 * pi * freq
 !--- Number of periods
 $ nbp = 1.0
 !--- Final time
-$ t_fin = nbp / f
+$ t_fin = nbp / freq
 !--- time step:
 $ dt = 1e-4
-!-- Number of time setps
+!-- Number of time steps
 $ nbt = floor(t_fin/dt)
 
 Header
@@ -45,7 +45,7 @@ Simulation
   TimeStep Intervals(1) = Integer $ nbt
   Output Intervals(1) = Integer 1
 
-  Output File = "ocresult.dat"
+  Output File = "ocresults.dat"
 
   Max Output Level = 10
 End
@@ -66,21 +66,20 @@ End
 !--- No need to give the body force for the circuit. By default, it is the body force 1
 !--- However, it is necessary for the heat source to provide a body force
 Body 1
-  Name = "HV"
-  Target Bodies(1) = $ HV
-  Equation = 1
-  Material = 1
-  Initial Condition = 1
-  !Body Force = 1
-End
-
-Body 2
   Name = "LV"
   Target Bodies(1) = $ LV
   Equation = 1
   Material = 1
   Initial Condition = 1
   Body Force = 1
+End
+
+Body 2
+  Name = "HV"
+  Target Bodies(1) = $ HV
+  Equation = 1
+  Material = 1
+  Initial Condition = 1
 End
 
 !--- Be aware that all the non inductors should not use the CoilSolver.
@@ -119,11 +118,6 @@ Material 2
   Relative Permittivity = Real 1.0
   Electric Conductivity = Real 1000.0
 
-  !H-B Curve = Variable "dummy"
-  !  Real Cubic Monotone
-  !      Include ./DATA/curve_BH-CERN.dat
-  !  End
-
   Density = Real 7860.0
   Heat Conductivity = 100.0
   Heat Capacity = 0.1
@@ -143,15 +137,31 @@ Body Force 1
   !--- The only place to define the sources for all the electric circuits
   !--- Primary voltage (S1)
   S1_Source = Variable "time"; Real MATC "S1*sin(w*tx[0])"
-  
-  !Current Density 1 = Variable time, CoilCurrent e 1; Real MATC "tx[1]*sin(w*tx[0])"
-  !Current Density 2 = Variable time, CoilCurrent e 2; Real MATC "tx[1]*sin(w*tx[0])"
-  !Current Density 3 = Variable time, CoilCurrent e 3; Real MATC "tx[1]*sin(w*tx[0])"
 End
 
 
 !!! COMPONENTS !!!
 Component 1
+  Name = "LV"
+  Master Bodies Name = String "LV"
+  Master Bodies(1) = Integer $ LV
+  Coil Type = "Stranded"
+  Number of Turns = Real $ N_LV
+  !Resistance = Real $ R_LV
+ 
+  ! Additions for 3D Coil
+  Coil Use W Vector = Logical True
+  W Vector Variable Name = String "CoilCurrent e"
+  Electrode Area = Real $ Ae_LV
+  
+  !Desired Current Density = Real 1.0
+
+  Fit Coil = Logical False
+  Coil Normal(3) = Real 0.0 0.0 1.0
+  Coil Center(3) = Real 0.0 0.0 0.0
+End
+
+Component 2
   Name = "HV"
   Master Bodies Name = String "HV"
   Master Bodies(1) = Integer $ HV
@@ -163,26 +173,6 @@ Component 1
   Coil Use W Vector = Logical True
   W Vector Variable Name = String "CoilCurrent e"
   Electrode Area = Real $ Ae_HV
-  
-  !Desired Current Density = Real 1.0
-
-  Fit Coil = Logical False
-  Coil Normal(3) = Real 0.0 0.0 1.0
-  Coil Center(3) = Real 0.0 0.0 0.0
-End
-
-Component 2
-  Name = "LV"
-  Master Bodies Name = String "LV"
-  Master Bodies(1) = Integer $ LV
-  Coil Type = "Stranded"
-  Number of Turns = Real $ N_LV
-  !Resistance = Real $ R_HV
- 
-  ! Additions for 3D Coil
-  Coil Use W Vector = Logical True
-  W Vector Variable Name = String "CoilCurrent e"
-  Electrode Area = Real $ Ae_LV
   
   !Desired Current Density = Real 1.0
 
@@ -210,7 +200,7 @@ End
 !!! EQUATIONS !!!
 Equation 1
   Name = "Multiphysics for inductors"
-  Active Solvers(6) = 1 2 3 4 5 6
+  Active Solvers(7) = 1 2 3 4 5 6 7
 End
 
 Equation 2
@@ -237,6 +227,7 @@ Solver 1  !--- CoilSolver: Current density in closed coil
   Normalize Coil Current = Logical True ! necessary to have a uniform current across the coil
   Fix Input Current Density = Logical True
   Nonlinear System Consistent Norm = Logical True
+  
   Coil Closed = Logical True
   Narrow Interface = Logical True
 
@@ -253,7 +244,6 @@ Solver 2 !--- CircuitsAndDynamics: External electrical circuit
    Variable = X
    No Matrix = Logical True
 End
-
 
 Solver 3  !---- MagnetoDynamics, WhitneyAVSolver: A-V solver
    Exec Solver = Always
@@ -335,5 +325,12 @@ Solver 6  !--- CircuitsAndDynamics, CircuitsOutput: save data from circuit
    Exec Solver = Always
    Equation = Circuits Output
    Procedure = "CircuitsAndDynamics" "CircuitsOutput"
+End
+
+Solver 7  !--- SaveData, SaveScalars: write circuit variables to file
+   Exec Solver = After timestep
+   Equation = "sv"
+   Procedure = "SaveData" "SaveScalars"
+   Filename = "occircuit.dat"
 End
 

@@ -21,14 +21,18 @@ Boundary Condition 1
 End
 
 Boundary Condition 2
-  Name = convectiveboundary
+  Name = coresurf
 End
 
 Boundary Condition 3
-  Name = bnry7
+  Name = HVsurf
 End
 
 Boundary Condition 4
-  Name = bnry8
+  Name = LVsurf
+End
+
+Boundary Condition 5
+  Name = bnry9
 End
 

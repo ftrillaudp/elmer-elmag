@@ -10,16 +10,16 @@ Include circuit.definitions
 !!! PARAMETERS !!!
 
 !--- frequency
-$ f = 60.0
+$ freq = 60.0
 !--- Pulsation
-$ w = 2.0 * pi * f
+$ w = 2.0 * pi * freq
 !--- Number of periods
 $ nbp = 1.0
 !--- Final time
-$ t_fin = nbp / f
+$ t_fin = nbp / freq
 !--- time step:
 $ dt = 1e-4
-!-- Number of time setps
+!-- Number of time steps
 $ nbt = floor(t_fin/dt)
 
 
@@ -46,7 +46,7 @@ Simulation
   TimeStep Intervals(1) = Integer $ nbt
   Output Intervals(1) = Integer 1
 
-  Output File = "result.dat"
+  Output File = "results.dat"
 
   Max Output Level = 10
 End
@@ -81,7 +81,6 @@ Body 2
   Equation = 1
   Material = 1
   Initial Condition = 1
-  !Body Force = 1
 End
 
 !--- Be aware that all the non inductors should not use the CoilSolver.
@@ -107,7 +106,7 @@ Material 1
   Name = "Cu"
   Relative Permeability = Real 1.0
   Relative Permittivity = Real 1.0
-  Electric Conductivity = Real 1e6
+  Electric Conductivity = Real 5.96e7
 
   Density = Real 8960.0
   Heat Conductivity = 100.0
@@ -116,8 +115,9 @@ End
 
 Material 2
   Name = "Iron"
-  Relative Permeability = Real 600.0
+  Relative Permeability = Real 1500.0
   Relative Permittivity = Real 1.0
+  Electric Conductivity = Real 1000.0
 
   !H-B Curve = Variable "dummy"
   !  Real Cubic Monotone
@@ -142,7 +142,7 @@ Body Force 1
   Name = "Sources"
   !--- The only place to define the sources for all the electric circuits
   !--- Primary voltage (S1)
-  S1_Source = Variable time; Real MATC "S1*sin(w*tx[0])"
+  S1_Source = Variable "time"; Real MATC "S1*sin(w*tx[0])"
   
   !Current Density 1 = Variable time, CoilCurrent e 1; Real MATC "tx[1]*sin(w*tx[0])"
   !Current Density 2 = Variable time, CoilCurrent e 2; Real MATC "tx[1]*sin(w*tx[0])"
@@ -210,7 +210,7 @@ End
 !!! EQUATIONS !!!
 Equation 1
   Name = "Multiphysics for inductors"
-  Active Solvers(6) = 1 2 3 4 5 6
+  Active Solvers(7) = 1 2 3 4 5 6 7
 End
 
 Equation 2
@@ -237,6 +237,7 @@ Solver 1  !--- CoilSolver: Current density in closed coil
   Normalize Coil Current = Logical True ! necessary to have a uniform current across the coil
   Fix Input Current Density = Logical True
   Nonlinear System Consistent Norm = Logical True
+  
   Coil Closed = Logical True
   Narrow Interface = Logical True
 
@@ -336,4 +337,12 @@ Solver 6  !--- CircuitsAndDynamics, CircuitsOutput: save data from circuit
    Equation = Circuits Output
    Procedure = "CircuitsAndDynamics" "CircuitsOutput"
 End
+
+Solver 7  !--- SaveData, SaveScalars: write circuit variables to file
+   Exec Solver = After timestep
+   Equation = "sv"
+   Procedure = "SaveData" "SaveScalars"
+   Filename = "circuit.dat"
+End
+
 

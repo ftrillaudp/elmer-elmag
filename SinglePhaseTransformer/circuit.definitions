@@ -74,9 +74,9 @@ $ Rl = 0.001
 $ Ll = 0.0001
 
 ! Parameters in Component 2: LV
-$ N_LV = 7	 ! Number of Turns
-$ R_LV = 0	 ! Coil Resistance
-$ Ns_LV = 1	 ! Sector/Symmetry Coefficient (e.g. 4 is 1/4 of the domain)
+$ N_LV = 7 ! Number of Turns
+$ R_LV = 0 ! Coil Resistance
+$ Ns_LV = 1 ! Sector/Symmetry Coefficient (e.g. 4 is 1/4 of the domain)
 
 ! -----------------------------------------------------------------------------
 ! Matrix Size Declaration and Matrix Initialization
