@@ -6,8 +6,6 @@ import gmsh
 import sys
 import numpy as np
 
-gmsh.initialize()
-
 name = "bulk"
 
 model_rank = 0
@@ -37,8 +35,16 @@ R = 15e-3
 h = 15e-3
 Ra = 0.1
 
-lca = Ra/10
+lca = Ra/6
 lcb = h/10
+
+### Get the tags for dimtags list
+def get_gdimtags(dimtags, gdim):
+	tags = list()
+	for i, v in enumerate(dimtags):
+		if (v[0] == gdim):
+			tags.append(v[1])
+	return tags	
 
 
 if mesh_comm.rank == model_rank:
@@ -51,14 +57,10 @@ if mesh_comm.rank == model_rank:
 	
 	cascade.synchronize()
 	
-	
 	meshing.setSize(mod.getEntities(0), lca)
 	bulk_surfNode_dimtag = mod.getBoundary([(gdim, 1)], combined=True, oriented=False, recursive=True)
 	meshing.setSize(bulk_surfNode_dimtag, lcb)
 
-
-
-	
 	up, down = mod.getAdjacencies(gdim, 3)
 	
 	mod.addPhysicalGroup(gdim, [1], 1, name="bulk")
