@@ -1,6 +1,6 @@
 !------ Skeleton for body section -----
 Body 1
-  Name = coil
+  Name = bulk
 End
 
 Body 2
@@ -9,6 +9,10 @@ End
 
 !------ Skeleton for boundary section -----
 Boundary Condition 1
-  Name = airboundary
+  Name = airBoundary
+End
+
+Boundary Condition 2
+  Name = fixedTemperature
 End
 

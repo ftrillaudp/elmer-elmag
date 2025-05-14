@@ -39,12 +39,12 @@ End
 
 !-- LUA FUNCTIONS --
 !-- Snusoidal
-#function h_a(x) f = 50; ba = 1.0; mu_0 = 1.256e-6; y = (ba / mu_0)*math.sin(2*math.pi*f*x) return y end
+#function h_a(x) f = 50; ba = 5.0; mu_0 = 1.256e-6; y = (ba / mu_0)*math.sin(2*math.pi*f*x) return y end
 
 ! -- BODIES --
 Body 1
-  Name = "material"
-  Target Bodies(1) = $ material
+  Name = "bulk"
+  Target Bodies(1) = $ bulk
   Equation = 1
   Material = 1
   Initial Condition = 1
@@ -62,7 +62,15 @@ End
 Material 1
   Name = "REBCO"
   Relative Permeability = Real 1.0
-  Electric Resistivity = Real 1.0e-8
+!~   Electric Resistivity = Real 1e-8
+
+  N-Value = Real 20
+  Critical Electrical Field = Real 1e-4
+  Critical Current Density = Real 1e10
+  
+  Electric Resistivity = Variable "Jfield E"
+    Real Procedure "./Fortran90/electricalResistivity" "getElectricalResistivity"
+
 End
 
 Material 2
@@ -95,36 +103,90 @@ Equation 1
   Active Solvers(3) = 1 2 3
 End
 
+!~ Solver 1
+!~   Equation = "H formulation"
+!~   Exec Solver = Always
+  
+!~   Procedure = "./Fortran90/hWhitneySolver"  "HWhitneySolver"
+  
+!~   Variable = H
+  
+!~   Nonlinear System Convergence Tolerance = 1e-6
+!~   Nonlinear System Max Iterations = 1
+!~   Newton-Raphson Iteration = Logical True
+
+!~ ! These choose the overall block strategies
+!~ !-----------------------------------------
+!~   Linear System Solver = Block
+!~ !  Linear System Symmetric = True
+
+!~   Block Gauss-Seidel = Logical True
+!~   Block A-V System = Logical True
+!~   Block Matrix Reuse = Logical True
+!~   Block Preconditioner = Logical True
+
+!~ ! Linear system solver for outer loop
+!~ !-----------------------------------------
+!~   Outer: Linear System Solver = "Iterative"
+!~   Outer: Linear System Convergence Tolerance = 3e-3
+!~   Outer: Linear System Iterative Method = GCR
+!~   Outer: Linear System GCR Restart =  150
+!~   Outer: Linear System Residual Output =  1
+!~   Outer: Linear System Max Iterations =  1000
+
+!~ ! Linear system solver for blocks
+!~ !-----------------------------------------
+!~   Linear System Max Iterations = 1250
+!~   Linear System Residual Output = integer 20
+!~   Linear System Convergence Tolerance = 1e-3
+
+!~   Block 11: Linear System Solver = Iterative
+
+!~   Block 11: Linear System Preconditioning = BoomerAMG
+!~   Block 11: Linear System Use Hypre = True
+!~   Block 11: Linear System Iterative Method = BiCGStab
+!~ ! Block 11: Linear System Use Backward Error Estimate = Logical True
+
+!~   Block 22: Linear system Solver = Iterative
+!~   Block 22: Linear System Preconditioning = AMS
+!~   Block 22: Linear System Use Hypre = True
+!~   Block 22: Linear System Iterative Method = BiCGStab
+!~ ! Block 22: Linear System Use Backward Error Estimate = Logical True
+
+!~   Steady State Convergence Tolerance = 1e-6
+
+!~ End
+
 
 Solver 1
-  Equation = "H formulaiton"
+  Equation = "H formulation"
   Variable = H
 
   Optimize Bandwidth = True
   Linear System Symmetric = False
   Procedure = "./Fortran90/hWhitneySolver"  "HWhitneySolver"
 
-  Quadratic Approximation = Logical False
+  Quadratic Approximation = Logical True ! help for convergence
 
-  ! Linear System Scaling = True
-  ! Linear System Solver = String "Iterative"
-  ! Linear System Iterative Method = String "bicgstabl"
-  ! BiCGstabl polynomial degree = Integer 6
-  ! Linear System Preconditioning = String "none"
-  ! Linear System ILUT Tolerance = Real 1e-4
-  ! Linear System Max Iterations = 1000
-  ! Linear System Convergence Tolerance = 1.0e-4
-  ! Linear System Abort Not Converged = True
-  ! Linear System Residual Output = 1
+  Linear System Scaling = True
+  Linear System Solver = String "Iterative"
+  Linear System Iterative Method = String "bicgstabl"
+  BiCGstabl polynomial degree = Integer 4
+  Linear System Preconditioning = String "none"
+  Linear System ILUT Tolerance = Real 1e-6
+  Linear System Max Iterations = 1000
+  Linear System Convergence Tolerance = 1.0e-4
+  Linear System Abort Not Converged = True
+  Linear System Residual Output = 1
 
-  Linear System Solver = Direct
-  Linear System Direct Method = MUMPS
+!~   Linear System Solver = Direct
+!~   Linear System Direct Method = MUMPS
 
   Nonlinear System Convergence Tolerance = 1.0e-4
-  Nonlinear System Max Iterations = 1
-  Nonlinear System Newton After Iterations = 3
+  Nonlinear System Max Iterations = 2
+  Nonlinear System Newton After Iterations = 5
   Nonlinear System Newton After Tolerance = 1.0e-3
-  Nonlinear System Relaxation Factor = 1
+  Nonlinear System Relaxation Factor = 0.98
 
 ! Only global matrices work for constant bulk matrix currently.
 ! Constant bulk matrix saves ~20% for the test problem.
@@ -137,11 +199,6 @@ Solver 2
 
   Procedure = "./Fortran90/hWhitneySolver" "HWhitneyCalcFields"
   Linear System Symmetric = False
-
-  Calculate Time Derivatives = Logical False
-  Calculate Elemental Fields = Logical True
-  Calculate Nodal Fields = Logical True
-  Calculate Current Density = Logical True
 
   Steady State Convergence Tolerance = 1
   Linear System Solver = "Iterative"

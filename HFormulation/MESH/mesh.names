@@ -1,5 +1,6 @@
 ! ----- names for bodies -----
-$ coil = 1
+$ bulk = 1
 $ air = 2
 ! ----- names for boundaries -----
-$ airboundary = 3
+$ airBoundary = 3
+$ fixedTemperature = 4

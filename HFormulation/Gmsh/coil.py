@@ -56,13 +56,13 @@ if (mesh_comm.rank == model_rank):
     coil = list()
     for i,v in enumerate(x):
         coil.append(cascade.addCylinder(v, y[i], z[i], dx[i], dy[i], dz[i], r[i], i))
-    cascade.cut([(3, 0)], [(3, 1)], 2, True, True)
+    cascade.cut([(gdim, 0)], [(gdim, 1)], 2, True, True)
     cascade.mesh.setSize(cascade.getEntities(0), cl)
 
     ### Air
     Ra = 2*Ro; lc_air = Ra / 8
     air = cascade.addSphere(0, 0, 0, Ra, 3)
-    cascade.cut([(3, 3)], [(3, 2)], 4, True, False)
+    cascade.cut([(gdim, 3)], [(gdim, 2)], 4, True, False)
 
     ### Remove duplicate nodes
     cascade.removeAllDuplicates
@@ -105,6 +105,10 @@ if (mesh_comm.rank == model_rank):
 # ~ if '-nopopup' not in sys.argv:
     # ~ gmsh.fltk.run()
 
+### Close the gmsh engine	
+gmsh.finalize()
+
+
 # Build the input file for the solver	
 myFile0 = open(name+".dat", "w")
 with myFile0 as file:
@@ -113,6 +117,3 @@ with myFile0 as file:
     file.write("$ wd = "+str(wd)+"\n")
     file.write("$ h = "+str(h))
 myFile0.close()
-
-### Close the gmsh engine	
-gmsh.finalize()

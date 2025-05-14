@@ -443,8 +443,8 @@ SUBROUTINE HWhitneyCalcFields_Init0( Model, Solver, dt, Transient )
 
   ! Electric field is always computed
   CALL ListAddString( SolverParams, NextFreeKeyword('Exported Variable', SolverParams), "Hfield E[Hfield E:3]" );
-  CALL ListAddString( SolverParams, NextFreeKeyword('Exported Variable', SolverParams), "Efield E[Efield E:3]" );
-  CALL ListAddString( SolverParams, NextFreeKeyword('Exported Variable', SolverParams), "Jfield E[Jfield E:3]" );
+  CALL ListAddString( SolverParams, NextFreeKeyword('Exported Variable', SolverParams), "dHdt E[dHdt E:3]" );
+  CALL ListAddString( SolverParams, NextFreeKeyword('Exported Variable', SolverParams), "dHdx E[dHdx E:3]" );
 
   DEALLOCATE(Model % Solvers)
   Model % Solvers => Solvers
@@ -484,8 +484,8 @@ SUBROUTINE HWhitneyCalcFields_Init( Model, Solver, dt, Transient )
   IF(Found .AND. .NOT. NodalFields ) RETURN
 
   CALL ListAddString( SolverParams, NextFreeKeyword( 'Exported Variable', SolverParams), "Hfield[Hfield:3]" );
-  CALL ListAddString( SolverParams, NextFreeKeyword( 'Exported Variable', SolverParams), "Efield[Efield:3]" );
-  CALL ListAddString( SolverParams, NextFreeKeyword( 'Exported Variable', SolverParams), "Jfield[Jfield:3]" );
+  CALL ListAddString( SolverParams, NextFreeKeyword( 'Exported Variable', SolverParams), "dHdt[dHdt:3]" );
+  CALL ListAddString( SolverParams, NextFreeKeyword( 'Exported Variable', SolverParams), "dHdx[dHdx:3]" );
 
 !------------------------------------------------------------------------------
 END SUBROUTINE HWhitneyCalcFields_Init
@@ -571,11 +571,11 @@ END SUBROUTINE HWhitneyCalcFields_Init
    HF => VariableGet( Mesh % Variables, 'Hfield')
    HF_e => VariableGet( Mesh % Variables, 'Hfield E')
 
-   dHF => VariableGet( Mesh % Variables, 'Efield')
-   dHF_e => VariableGet( Mesh % Variables, 'Efield E')
+   dHF => VariableGet( Mesh % Variables, 'dHdt')
+   dHF_e => VariableGet( Mesh % Variables, 'dHdt E')
 
-   dHFdx => VariableGet( Mesh % Variables, 'Jfield')
-   dHFdx_e => VariableGet( Mesh % Variables, 'Jfield E')
+   dHFdx => VariableGet( Mesh % Variables, 'dHdx')
+   dHFdx_e => VariableGet( Mesh % Variables, 'dHdx E')
 
    AnyTimeDer = ASSOCIATED( dHF ) .OR. ASSOCIATED( dHF_e )
    AnySpaceDer = ASSOCIATED( dHFdx ) .OR. ASSOCIATED( dHFdx_e )

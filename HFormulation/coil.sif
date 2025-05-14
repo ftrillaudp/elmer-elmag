@@ -76,9 +76,6 @@ End
 !!! BODY FORCES !!!
 Body Force 1
   Name = "Source 1"
-  Current Density 1 = Variable Coordinate 1, Coordinate 2; Real lua "-Je*sin(math.atan2(tx[1],tx[0]))"
-  Current Density 2 = Variable Coordinate 1, Coordinate 2; Real lua "Je*cos(math.atan2(tx[1],tx[0]))"
-  Current Density 3 = Real 0.0
 End
 
 
@@ -103,38 +100,12 @@ End
 !-- EQUATIONS --
 Equation 1
   Name = "H Whitney"
-  Active Solvers(4) = 1 2 3 4
+  Active Solvers(3) = 1 2 3
 End
 
 
 !!! SOLVERS !!!
-Solver 1  !--- CoilSolver: Current density in closed coil
-  Exec Solver = Before All
-  Equation = "CoilSolver"
-  Procedure = "CoilSolver" "CoilSolver"
-
-  Steady State Convergence Tolerance = 1.0e-6 ! related to the Steady State Iterations (see Simulation)
-
-  Linear System Solver = "Iterative"
-  Linear System Preconditioning = ILU1
-  Linear System Max Iterations = 500
-  Linear System Convergence Tolerance = 1.0e-8 ! to get proper current density flow
-  Linear System Iterative Method = BiCGStab
-  Linear System Residual Output = 1
-
-  Normalize Coil Current = Logical True ! necessary to have a uniform current across the coil
-  Fix Input Current Density = Logical True
-  Nonlinear System Consistent Norm = Logical True
-  Coil Closed = Logical True
-  Narrow Interface = Logical True
-
-  Save Coil Set = Logical True
-  Save Coil Index = Logical True
-  
-  Calculate Elemental Fields = Logical True
-End
-
-Solver 2
+Solver 1
   Equation = "H formulation"
   Variable = H
 
@@ -170,7 +141,7 @@ Solver 2
   Constant Bulk Matrix = True
 End
 
-Solver 3
+Solver 2
   Equation = "calcfields"
 
   Procedure = "./Fortran90/hWhitneySolver" "HWhitneyCalcFields"
@@ -196,7 +167,7 @@ Solver 3
 End
 
 
-Solver 4
+Solver 3
   Exec Solver = After timestep
   Equation = "ResultOutput"
   Procedure = "ResultOutputSolve" "ResultOutputSolver"
