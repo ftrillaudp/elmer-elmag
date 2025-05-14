@@ -4,7 +4,7 @@
 DefineConstant[
 bulkRadius = {0.0125, Name "Input/0Geometry/0Bulk radius (m)"},
 bulkHeight = {0.01, Name "Input/0Geometry/1Bulk height (m)"},
-materialMeshSize = {0.08, Name "Input/1Mesh/0Mesh size of material (-)"},
+materialMeshSize = {0.25, Name "Input/1Mesh/0Mesh size of material (-)"},
 airMeshSize = {0.2, Name "Input/1Mesh/1Mesh size of air (-)"},
 flag_sphereBND = {1, Choices{0,1}, Name "Input/1Mesh/2Sphere boundary {yes = 1, no = 0}"}
 flag_mesh = {0, Choices{0,1}, Name "Input/1Mesh/2Progressive mesh {yes = 1, no = 0}"}
@@ -14,8 +14,8 @@ If (flag_sphereBND == 1)
  airHeight = 4*bulkHeight;
 EndIf
 If (flag_mesh == 1)
-  materialMeshSize = 0.01;
-  airMeshSize = 2;
+  materialMeshSize = 0.1;
+  airMeshSize = 6;
 EndIf
 lc_1 = bulkHeight*materialMeshSize;
 lc_2 = airRadius*airMeshSize;
@@ -26,6 +26,7 @@ airID = 2; airBoundaryID = 3;
 fixedTemperatureID = 4;
 
 /// --- Geometry and Meshing ----
+Save "mesh.msh";
 SetFactory("OpenCASCADE");
 General.ExpertMode = 1;
 
@@ -88,7 +89,7 @@ Physical Surface("fixedTemperature", fixedTemperatureID) = {surfaces_1(1)};
 If (flag_mesh == 1)
   // Attractors field on on edges:
   Field[1] = Attractor;
-  Field[1].NNodesByEdge = 80; // #attractors on the edges
+  Field[1].NNodesByEdge = 40; // #attractors on the edges
   Field[1].EdgesList = {edges_1(0), edges_1(2)};
   // Threshold field defined on the attractors
   Field[2] = Threshold;

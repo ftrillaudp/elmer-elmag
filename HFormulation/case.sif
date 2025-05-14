@@ -3,6 +3,13 @@
 
 Include "./MESH/mesh.names"
 
+# nbc = 1
+# freq = 50
+# t_fin = nbc / freq
+# dt = 1e-4
+# nbstp = math.floor(t_fin / dt)
+# ba = 1.0 
+
 Header
   CHECK KEYWORDS Warn
   Mesh DB "." "MESH"
@@ -20,8 +27,8 @@ Simulation
   TimeStepping Method = BDF
   BDF Order = 2
 
-  Timestep Sizes(1) = Real 0.001
-  TimeStep Intervals(1) = Integer 100
+  Timestep Sizes(1) = # dt
+  TimeStep Intervals(1) = # nbstp
   Output Intervals(1) = Integer 1
 
   Max Output Level = 5
@@ -39,7 +46,7 @@ End
 
 !-- LUA FUNCTIONS --
 !-- Snusoidal
-#function h_a(x) f = 50; ba = 5.0; mu_0 = 1.256e-6; y = (ba / mu_0)*math.sin(2*math.pi*f*x) return y end
+# function h_a(x) mu_0 = 1.256e-6; y = (ba / mu_0)*math.sin(2*math.pi*freq*x) return y end
 
 ! -- BODIES --
 Body 1
@@ -66,7 +73,7 @@ Material 1
 
   N-Value = Real 20
   Critical Electrical Field = Real 1e-4
-  Critical Current Density = Real 1e10
+  Critical Current Density = Real 1.6e8
   
   Electric Resistivity = Variable "Jfield E"
     Real Procedure "./Fortran90/electricalResistivity" "getElectricalResistivity"
@@ -85,12 +92,12 @@ Boundary Condition 1
   Target Boundaries(1) = $ airBoundary
   H {e} 1 = Real 0.0
   H {e} 2 = Real 0.0
-  H {e} 3 = Variable Time; Real lua "h_a(tx[0])"
+  H {e} 3 = Variable "Time"; Real lua "h_a(tx[0])"
 End
 
 !-- INITIAL CONDITIONS --
 Initial Condition 1
-  Name = "Initial state: thermo-magnetodynamics"
+  Name = "Initial state: magnetodynamics"
   H {e} 1 = Real 0.0
   H {e} 2 = Real 0.0
   H {e} 3 = Real 0.0

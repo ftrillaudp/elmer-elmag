@@ -25,21 +25,15 @@ filename = "mesh"
 # print("File name:", filename)
 
 # Commands
-<<<<<<< HEAD
 cmd_geo = "cd ./Gmsh; python bulk.py; cd .."
 cmd_msh = "ElmerGrid 14 2 ./Gmsh/"+filename+".msh -out MESH"
-cmd_compile = "cd ./Fortran90; elmerf90 -o hWhitneySolver.so hWhitneySolver.F90; cd .."
+cmd_compile = "cd ./Fortran90; elmerf90 -o hWhitneySolver.so hWhitneySolver.F90; elmerf90 -o electricalResistivity.so electricalResistivity.F90; cd .."
 cmd_solver = "ElmerSolver case.sif"
-=======
-cmd_msh = "python ./Gmsh/coil.py; ElmerGrid 14 2 ./Gmsh/"+filename+".msh -out MESH"
-cmd_compile = "bash compileUDF.sh"
-cmd_solver = "ElmerSolver coil.sif"
->>>>>>> 76e208e53717651f49a407a097399152c0679c4e
 
 st = time.time()
 
 print("Mesh generation")
-os.system(cmd_geo)
+#os.system(cmd_geo)
 os.system(cmd_msh)
 
 print("Solver")
