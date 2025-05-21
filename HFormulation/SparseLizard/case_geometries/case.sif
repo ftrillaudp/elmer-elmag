@@ -1,0 +1,356 @@
+Header
+  CHECK KEYWORDS "Warn"
+  Mesh DB "." "case"
+  Results Directory "results"
+End
+
+Simulation
+  Max Output Level = 7
+  Coordinate System = Cartesian
+  Coordinate Mapping(3) = 1 2 3
+  Simulation Type = Transient
+  Steady State Max Iterations = 1
+  Output Intervals = 1
+  Coordinate Scaling = 0.001
+  TimeStepping Method = BDF
+  BDF Order = 1
+  Timestep intervals = 100
+  Timestep Sizes = 1e-06
+  Output File = "h1.result"
+  Output Variable 2 = "LoadWm3Avg"
+  Output Variable 1 = "LoadWkgAvg"
+  Output File Final Only = Logical True
+End
+
+Constants
+  Gravity(4) = 0 -1 0 9.82
+  Permeability of Vacuum = 1.25663706e-06
+  Permittivity of Vacuum = 8.854187817e-12
+  Stefan Boltzmann = 5.670374419e-08
+  Boltzmann Constant = 1.380649e-23
+  Unit Charge = 1.6021766e-19
+End
+
+! windings_eqs
+Equation 1
+  Active Solvers(4) = 1 2 3 5   ! WhitneyAVSolver, MagnetoDynamicsCalcFieldsSolverCoreLoss, ProcessFieldsSolver, SaveScalarsSolver, 
+End
+
+! cores_eqs
+Equation 2
+  Active Solvers(4) = 1 2 3 5   ! WhitneyAVSolver, MagnetoDynamicsCalcFieldsSolverCoreLoss, ProcessFieldsSolver, SaveScalarsSolver, 
+End
+
+! air_eqs
+Equation 3
+  Active Solvers(4) = 1 2 3 5   ! WhitneyAVSolver, MagnetoDynamicsCalcFieldsSolverCoreLoss, ProcessFieldsSolver, SaveScalarsSolver, 
+End
+
+
+! WhitneyAVSolver
+Solver 1
+  Equation = MGDynamics
+  Procedure = "MagnetoDynamics" "WhitneyAVSolver"
+  Exec Solver = Always
+  Stabilize = True
+  Optimize Bandwidth = True
+  Steady State Convergence Tolerance = 1e-05
+  Nonlinear System Convergence Tolerance = 1e-07
+  Nonlinear System Max Iterations = 1
+  Nonlinear System Newton After Iterations = 3
+  Nonlinear System Newton After Tolerance = 0.001
+  Nonlinear System Relaxation Factor = 1
+  Linear System Solver = Iterative
+  Linear System Iterative Method = BiCGStabl
+  Linear System Max Iterations = 5000
+  Linear System Convergence Tolerance = 1e-10
+  BiCGstabl polynomial degree = 6
+  Linear System Preconditioning = none
+  Linear System Abort Not Converged = False
+  Linear System Residual Output = 10
+  Linear System Precondition Recompute = 1
+  Exported Variable 1 = -dg "LossFactor"
+End
+
+! MagnetoDynamicsCalcFieldsSolverCoreLoss
+Solver 2
+  Equation = MGDynamicsCalc
+  Procedure = "MagnetoDynamics" "MagnetoDynamicsCalcFields"
+  Linear System Symmetric = True
+  Potential Variable = String "AV"
+  Steady State Convergence Tolerance = 1e-8
+  Linear System Solver = Iterative
+  Linear System Preconditioning = None
+  Linear System Residual Output = 1000
+  Linear System Max Iterations = 5000
+  Linear System Iterative Method = CG
+  Linear System Convergence Tolerance = 1e-08
+  Separate Magnetic Energy = Logical True
+  Harmonic Loss Linear Frequency Exp = Real 1.4
+  Harmonic Loss Linear Exp = Real 2.5
+  Calculate Current Density = Logical True
+  Calculate Joule Heating = Logical True
+  Calculate Harmonic Loss = Logical True
+  Calculate Relative Permeability = Logical True
+  Calculate Elemental Fields = Logical True
+  Calculate Elemental Mode = Integer 2 ! can take 1-4
+  Calculate Nodal Fields = Logical False
+  Calculate Magnetic Field Strength = Logical True
+End
+
+! ProcessFieldsSolver
+Solver 3
+  Procedure = "ProcessFields" "ProcessFields"
+  Equation = post process data
+  Exec Solver = Always
+  Update Exported Variables = Logical True
+  Exported Variable 1 = -dg "LoadWkg"
+  Exported Variable 2 = -dg "LoadWm3"
+  Exported Variable 3 = -dg "BT"
+  Averaging Start Time = Real 0.0
+  Calculate Harmonic Loss = Logical True
+End
+
+! ResultOutputSolver
+Solver 4
+  Exec Solver = After Saving
+  Equation = ResultOutput
+  Procedure = "ResultOutputSolve" "ResultOutputSolver"
+  Vtu Part Collection = Logical True
+  Vtu Format = Logical True
+  Save Geometry Ids = Logical True
+  Save Bulk Only = Logical True
+  Output File Name = case
+  Save Nodal Fields = Logical True
+  Discontinuous Bodies = Logical False
+End
+
+! SaveScalarsSolver
+Solver 5
+  Exec Solver = After Timestep
+  Equation = SaveScalars
+  Procedure = "SaveData" "SaveScalars"
+  FileName = scalar_data.dat
+  Parallel Reduce = Logical True
+  Variable 1 = String Time
+  Mask Name 2 = "pad_1_save_scalar"
+  Variable 2 = "Current Density e 3"
+  Operator 2 = boundary int
+  Variable 3 = "Current Density e 2"
+  Operator 3 = boundary int
+  Variable 4 = "Current Density e 1"
+  Operator 4 = boundary int
+  Variable 5 = "AV"
+  Operator 5 = boundary max
+  Mask Name 6 = "pad_2_save_scalar"
+  Variable 6 = "Current Density e 3"
+  Operator 6 = boundary int
+  Variable 7 = "Current Density e 2"
+  Operator 7 = boundary int
+  Variable 8 = "Current Density e 1"
+  Operator 8 = boundary int
+  Variable 9 = "AV"
+  Operator 9 = boundary max
+End
+
+
+! copper
+Material 1
+  Density = 8960.0
+  Electric Conductivity = 32300000
+  Emissivity = 0.012
+  Heat Capacity = 415.0
+  Heat Conductivity = 401.0
+  Relative Permeability = 1
+  Relative Permittivity = 1
+End
+
+! ferrite_3C95_Ferroxcube_100C
+Material 2
+  Electric Conductivity = 0.0
+  Relative Permittivity = Real 1
+  Relative Permeability = 3880.0
+  Harmonic Loss Linear Coefficient = Real 0.0005335826586823117
+  Harmonic Loss Quadratic Coefficient = Real 7.146177437369927e-08
+  Harmonic Loss Linear Frequency Exp = Real 1.4629010765548767
+  Harmonic Loss Linear Exp = Real 3.4895656146131433
+  Heat Conductivity = 4.25
+  Density = 4800
+End
+
+! air_room
+Material 3
+  Name = "Air (room temperature)"
+  Relative Permeability = 1.00000037
+  Electric Conductivity = 0.0
+  Viscosity = 1.983e-05
+  Heat expansion Coefficient = 0.00343
+  Heat Conductivity = 0.0257
+  Density = 1.205
+  Sound speed = 343.0
+  Relative Permittivity = 1.00059
+  Heat Capacity = 1005.0
+End
+
+
+! copper
+Body 1
+  Target Bodies(1) = 1
+  Equation = 1  ! windings_eqs
+  Material = 1  ! copper
+  Name = "windings"
+End
+
+! ferrite
+Body 2
+  Target Bodies(1) = 2
+  Equation = 2  ! cores_eqs
+  Material = 2  ! ferrite_3C95_Ferroxcube_100C
+  Name = "cores"
+End
+
+! air
+Body 3
+  Target Bodies(1) = 3
+  Equation = 3  ! air_eqs
+  Material = 3  ! air_room
+  Name = "air"
+End
+
+
+! pad_1
+Boundary Condition 1
+  Target Boundaries(1) = 1
+  Name = "pad_1"
+  AV {e} = 0
+  AV = Variable "time" 
+  Real 
+    0.0 540.0
+    1e-06 540.0
+    2e-06 540.0
+    3e-06 540.0
+    4e-06 540.0
+    5e-06 270.0
+    6e-06 -270.0
+    7e-06 -270.0
+    8e-06 -270.0
+    9e-06 -270.0
+    1e-05 -270.0
+    1.1e-05 270.0
+    1.2e-05 270.0
+    1.3e-05 270.0
+    1.4e-05 270.0
+    1.5e-05 270.0
+    1.6e-05 -270.0
+    1.7e-05 -270.0
+    1.8e-05 -270.0
+    1.9e-05 -270.0
+    2e-05 -270.0
+    2.1e-05 270.0
+    2.2e-05 270.0
+    2.3e-05 270.0
+    2.4e-05 270.0
+    2.5e-05 270.0
+    2.6e-05 -270.0
+    2.7e-05 -270.0
+    2.8e-05 -270.0
+    2.9e-05 -270.0
+    3e-05 -270.0
+    3.1e-05 270.0
+    3.2e-05 270.0
+    3.3e-05 270.0
+    3.4e-05 270.0
+    3.5e-05 270.0
+    3.6e-05 -270.0
+    3.7e-05 -270.0
+    3.8e-05 -270.0
+    3.9e-05 -270.0
+    4e-05 -270.0
+    4.1e-05 270.0
+    4.2e-05 270.0
+    4.3e-05 270.0
+    4.4e-05 270.0
+    4.5e-05 270.0
+    4.6e-05 -270.0
+    4.7e-05 -270.0
+    4.8e-05 -270.0
+    4.9e-05 -270.0
+    5e-05 -270.0
+    5.1e-05 270.0
+    5.2e-05 270.0
+    5.3e-05 270.0
+    5.4e-05 270.0
+    5.5e-05 270.0
+    5.6e-05 -270.0
+    5.7e-05 -270.0
+    5.8e-05 -270.0
+    5.9e-05 -270.0
+    6e-05 -270.0
+    6.1e-05 270.0
+    6.2e-05 270.0
+    6.3e-05 270.0
+    6.4e-05 270.0
+    6.5e-05 270.0
+    6.6e-05 -270.0
+    6.7e-05 -270.0
+    6.8e-05 -270.0
+    6.9e-05 -270.0
+    7e-05 -270.0
+    7.1e-05 270.0
+    7.2e-05 270.0
+    7.3e-05 270.0
+    7.4e-05 270.0
+    7.5e-05 270.0
+    7.6e-05 -270.0
+    7.7e-05 -270.0
+    7.8e-05 -270.0
+    7.9e-05 -270.0
+    8e-05 -270.0
+    8.1e-05 270.0
+    8.2e-05 270.0
+    8.3e-05 270.0
+    8.4e-05 270.0
+    8.5e-05 270.0
+    8.6e-05 -270.0
+    8.7e-05 -270.0
+    8.8e-05 -270.0
+    8.9e-05 -270.0
+    9e-05 -270.0
+    9.1e-05 270.0
+    9.2e-05 270.0
+    9.3e-05 270.0
+    9.4e-05 270.0
+    9.5e-05 270.0
+    9.6e-05 -270.0
+    9.7e-05 -270.0
+    9.8e-05 -270.0
+    9.9e-05 -270.0
+  End
+  pad_1_save_scalar = Logical True
+End
+
+! pad_2
+Boundary Condition 2
+  Target Boundaries(1) = 2
+  Name = "pad_2"
+  AV {e} = 0
+  AV = 0
+  pad_2_save_scalar = Logical True
+End
+
+! AirExternal
+Boundary Condition 3
+  Target Boundaries(1) = 5
+  Name = "AirExternal"
+  AV {e} = 0
+End
+
+
+
+
+! Init1
+Initial Condition 1
+  Temperature = 298.15
+  AV {e} = Real 0.0
+End
+
