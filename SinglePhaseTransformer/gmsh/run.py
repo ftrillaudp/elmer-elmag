@@ -32,7 +32,7 @@ os.system("rm -R "+myPath_resu+"; rm ./*.pre ./*.res ./*.par")
 
 name = "transformer"
 getdp = "/opt/onelab-Linux64/getdp "
-cmd_msh = 'mpirun -n 1 python '+name+'.py -2 -bin -v 1 -nopopup'
+cmd_msh = 'mpirun -n 1 python '+name+'.py -2 -bin -v 2 -nopopup'
 cmd_solver = getdp+name+' -msh '+name+'.msh -bin -solve resolution -cpu -v 5'
 cmd_post = getdp+name+' -msh '+name+'.msh -pos postOperation -cpu -v 5'
 

@@ -46,15 +46,16 @@ separationcorehv = 0.0022
 lvwidth = 0.0121
 lvheight = 0.1085
 separationcorelv = 0.0022
-airRadius = 0.5
+airRadius = 0.2
 shellRadius = 1.2*airRadius
 
 xposhole = 0.5*(corecentrallegwidth+corelegwidth)+coreaperturewidth
 yposhole = 0.5*(coreapertureheight+corelegwidth)
 holeRadius = 0.006
 
-lc_1 = coreheight / 50
+lc_1 = coreheight / 100
 lc_2 = shellRadius / 10
+lc_3 = coreheight / 150
 
 ### Get the tags for dimtags list
 def get_gdimtags(dimtags, gdim):
@@ -64,54 +65,73 @@ def get_gdimtags(dimtags, gdim):
 			tags.append(v[1])
 	return tags	
 
-
+coils = list()
 if mesh_comm.rank == model_rank:
 	corebulk = cascade.addRectangle(-0.5*corewidth, -0.5*coreheight, 0., corewidth, coreheight, 1, cornerradius)
 	coretool_1 = cascade.addRectangle(-0.5*corecentrallegwidth-coreaperturewidth, -0.5*coreapertureheight, 0., coreaperturewidth, coreapertureheight, 2, cornerradius)
 	coretool_2 = cascade.addRectangle(0.5*corecentrallegwidth, -0.5*coreapertureheight, 0., coreaperturewidth, coreapertureheight, 3, cornerradius)
 	coretool_3 = cascade.addDisk(xposhole, yposhole, 0., holeRadius, holeRadius, 4)
 	coretool_4 = cascade.addDisk(-xposhole, yposhole, 0., holeRadius, holeRadius, 5)
-	core = cascade.cut([(gdim, 1)], [(gdim, i) for i in range(2,6)], 6, removeObject = True, removeTool = False)
+	core = cascade.cut([(gdim, 1)], [(gdim, i) for i in range(coretool_1,coretool_4+1)], 6, removeObject = True, removeTool = False)
+	core_tg = get_gdimtags(core[0], gdim)
 	
-	hv = cascade.addRectangle(0.5*corecentrallegwidth+separationcorehv, -0.5*hvheight, 0., hvwidth, hvheight, 7, cornerradius/2)
-	hv = cascade.addRectangle(-0.5*corecentrallegwidth-separationcorehv-hvwidth, -0.5*hvheight, 0., hvwidth, hvheight, 8, cornerradius/2)
+	hvr = cascade.addRectangle(0.5*corecentrallegwidth+separationcorehv, -0.5*hvheight, 0., hvwidth, hvheight, 7, 0*cornerradius/2)
+	coils.append(hvr)
+	hvl = cascade.addRectangle(-0.5*corecentrallegwidth-separationcorehv-hvwidth, -0.5*hvheight, 0., hvwidth, hvheight, 8, 0*cornerradius/2)
+	coils.append(hvl)
 	
-	lv = cascade.addRectangle(0.5*corecentrallegwidth+separationcorehv+hvwidth+separationcorelv, -0.5*lvheight, 0., lvwidth, lvheight, 9, cornerradius/2)
-	lv = cascade.addRectangle(-0.5*corecentrallegwidth-separationcorehv-hvwidth-separationcorelv-lvwidth, -0.5*lvheight, 0., lvwidth, lvheight, 10, cornerradius/2)
+	lvr = cascade.addRectangle(0.5*corecentrallegwidth+separationcorehv+hvwidth+separationcorelv, -0.5*lvheight, 0., lvwidth, lvheight, 9, 0*cornerradius/2)
+	coils.append(lvr)
+	lvl = cascade.addRectangle(-0.5*corecentrallegwidth-separationcorehv-hvwidth-separationcorelv-lvwidth, -0.5*lvheight, 0., lvwidth, lvheight, 10, 0*cornerradius/2)
+	coils.append(lvl)
 	
 	airbulk = cascade.addDisk(0., 0., 0., airRadius, airRadius)
-	air = cascade.cut([(gdim, airbulk)], [(gdim, i) for i in range(6,11)], removeObject = True, removeTool = False)
+	air = cascade.cut([(gdim, airbulk)], [(gdim, i) for i in range(core_tg[0], airbulk)], removeObject = True, removeTool = False)
+	air_tg = get_gdimtags(air[0], gdim)
+	air_tg_min = min(air_tg)
+	air_tg_max = max(air_tg)
 	
 	shellbulk = cascade.addDisk(0., 0., 0., shellRadius, shellRadius)
-	shell = cascade.cut([(gdim, shellbulk)], [(gdim, i) for i in range(6,15)], removeObject = True, removeTool = False)
+	shell = cascade.cut([(gdim, shellbulk)], [(gdim, i) for i in range(core_tg[0], air_tg_max)], removeObject = True, removeTool = False)
+	shell_tg = get_gdimtags(shell[0], gdim)
+	shell_tg_min = min(shell_tg)
 	
 	cascade.removeAllDuplicates
 	
 	cascade.synchronize()
 	
 	meshing.setSize(mod.getEntities(0), lc_1)
-	shell_surfNodes = mod.getBoundary([(gdim, 16)], combined=True, oriented=False, recursive=True)
+	
+	shell_surfNodes = mod.getBoundary([(gdim, shell_tg_min)], combined=True, oriented=False, recursive=True)
 	meshing.setSize(shell_surfNodes, lc_2)
 	
-	shell_surf = mod.getBoundary([(gdim, 16)], combined=True, oriented=False, recursive=False)
+	shell_surf = mod.getBoundary([(gdim, shell_tg_min)], combined=True, oriented=False, recursive=False)
 	shell_dt = get_gdimtags(shell_surf, gdim-1)
 	
-	mod.addPhysicalGroup(gdim, [6], 1, name="core")
-	mod.addPhysicalGroup(gdim, [7], 2, name="HVr")
-	mod.addPhysicalGroup(gdim, [8], 3, name="HVl")
-	mod.addPhysicalGroup(gdim, [9], 4, name="HLr")
-	mod.addPhysicalGroup(gdim, [10], 5, name="HLl")
-	mod.addPhysicalGroup(gdim, [i for i in range(11,16)], 6, name="air")
-	mod.addPhysicalGroup(gdim, [16], 7, name="shell")
+	core_surfNodes = mod.getBoundary(core[0], combined=True, oriented=False, recursive=True)
+	meshing.setSize(core_surfNodes, lc_3)
+	
+	### Transfinite meshing
+	for i, v in enumerate(coils):
+		meshing.setTransfiniteSurface(v)
+		meshing.setRecombine(gdim, v)
+	
+	mod.addPhysicalGroup(gdim, [core_tg[0]], 1, name="core")
+	mod.addPhysicalGroup(gdim, [hvr], 2, name="HVr")
+	mod.addPhysicalGroup(gdim, [hvl], 3, name="HVl")
+	mod.addPhysicalGroup(gdim, [lvr], 4, name="HLr")
+	mod.addPhysicalGroup(gdim, [lvl], 5, name="HLl")
+	mod.addPhysicalGroup(gdim, [i for i in range(air_tg_min,air_tg_max+1)], 6, name="air")
+	mod.addPhysicalGroup(gdim, [shell_tg_min], 7, name="shell")
 	mod.addPhysicalGroup(gdim-1, [shell_dt[1]], 8, name="boundary")
 	
-	mod.setColor([(gdim, 6)], 127, 127, 127, recursive=False)
-	mod.setColor([(gdim, 7)], 255, 0, 0, recursive=False)
-	mod.setColor([(gdim, 8)], 255, 51, 51, recursive=False)
-	mod.setColor([(gdim, 9)], 204, 102, 0, recursive=False)
-	mod.setColor([(gdim, 10)], 255, 153, 51, recursive=False)
+	mod.setColor(core[0], 127, 127, 127, recursive=False)
+	mod.setColor([(gdim, hvr)], 255, 0, 0, recursive=False)
+	mod.setColor([(gdim, hvl)], 255, 51, 51, recursive=False)
+	mod.setColor([(gdim, lvr)], 204, 102, 0, recursive=False)
+	mod.setColor([(gdim, lvl)], 255, 153, 51, recursive=False)
 	mod.setColor(air[0], 0, 128, 255, recursive=False)
-	mod.setColor([(gdim, 16)], 153, 153, 255, recursive=False)
+	mod.setColor(shell[0], 153, 153, 255, recursive=False)
 	mod.setColor([(gdim-1, shell_dt[1])], 255, 255, 255, recursive=False)
 	
 	meshing.removeDuplicateNodes

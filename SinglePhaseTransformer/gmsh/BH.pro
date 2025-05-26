@@ -142,4 +142,20 @@ Function{
   h_EIcore[] = nu_EIcore[$1] * $1 ;
   dhdb_EIcore[] = TensorDiag[1,1,1]*nu_EIcore[$1#1] + 2*dnudb2_EIcore[#1] * SquDyadicProduct[#1] ;
   dhdb_EIcore_NL[] = 2*dnudb2_EIcore[$1] * SquDyadicProduct[$1] ;
+  
+  
+  // BH-curve of M19
+  M19_h() = {0, 26.5, 37.8, 52.4, 71.9, 99.3, 136, 176, 279, 659, 1084, 1718, 2577, 3670, 6373, 10529, 20555, 58076} ;
+  M19_b() = {0, 0.1, 0.2, 0.4, 0.7, 1, 1.2, 1.3, 1.4, 1.5, 1.55, 1.6, 1.65, 1.7, 1.8, 1.9, 2, 2.1} ;
+  
+  M19_b2() = M19_b()^2 ;
+  M19_nu() = M19_h() / M19_b() ;
+  M19_nu(0) = M19_nu(1);
+
+  M19_nu_b2()  = ListAlt[M19_b2(), M19_nu()] ;
+  nu_M19[] = InterpolationLinear[SquNorm[$1]]{ M19_nu_b2() } ;
+  dnudb2_M19[] = dInterpolationLinear[SquNorm[$1]]{ M19_nu_b2() } ;
+  h_M19[] = nu_M19[$1] * $1 ;
+  dhdb_M19[] = TensorDiag[1,1,1]*nu_M19[$1#1] + 2*dnudb2_M19[#1] * SquDyadicProduct[#1] ;
+  dhdb_M19_NL[] = 2*dnudb2_M19[$1] * SquDyadicProduct[$1] ;
 }

@@ -1,18 +1,17 @@
 /*
 Author: F. Trillaud <ftrillaudp@gmail.com>
 Date: 04/17/2025
+NB: Based on inductor example by C. Geuzaine
 */
 
 Include "transformer.par";
 Include "BH.pro"; // nonlinear BH caracteristic of magnetic material
 
-Flag_NL = 0; // if 0 = air, 1 == iron
-If (Flag_NL)
-	Flag_freq = 0; // if 0 = time domain, 1 == frequency domain
-Else
-	Flag_freq = 1;
+Flag_NL = 1; // if 0 = air (frequency and time domain), 1 == iron (time domain))
+Flag_freq = 0; // frequency domain, linear case
+If (Flag_freq)
+	Flag_NL = 0;
 EndIf
-
 
 
 Group
@@ -31,11 +30,12 @@ Core = Region[{coreID}];
 
 Shell = Region[{shellID}];
 Air = Region[{airID, shellID}];
-Omega_nf = Region[{Air, Coils}];
+Omega_nf = Region[{Air, Coils}]; // non ferromagnetic materials
+Omega_f = Region[{Core}]; // Ferromagnetic material
 Omega_CC = Region[{Air, Core}]; // Non conducting region
 Omega_C = Region[{Coils}];
 
-If (Flag_NL == 1)
+If (Flag_NL)
 	Omega_nl = Region[{Core}]; // Non linear material
 Else
 	Omega_nl = Region[{ }];
@@ -78,10 +78,10 @@ Function
 {
 mu0 = 4.0*Pi*1e-7;
 nu[Omega_nf] = 1./mu0;
-If (Flag_NL == 1)
-	nu[Core] = nu_EIcore[$1];
-	dhdb_NL[Core] = dhdb_EIcore_NL[$1];
-	dhdb[Core] = dhdb_EIcore[$1];
+If (Flag_NL)
+	nu[Core] = nu_M19[$1];
+	dhdb_NL[Core] = dhdb_M19_NL[$1];
+	dhdb[Core] = dhdb_M19[$1];
 Else
 	mu_r = 1500.0;
 	nu[Core] = 1./(mu_r*mu0);
@@ -104,18 +104,19 @@ freq = 60.;
 w = 2*Pi*freq; // pulsation
 Je[Coils] = ((N_coils[] / Ae_coils[]) * Vector[0, 0, vDir[]]); // Engineering current density: F_Sin_wt_p[]{w,phase};
 
-TimeInit = 0.;
+t_ini = 0;
 nbp = 1; // Number of periods
-TimeFinal = nbp /freq;
+t_fin = nbp /freq;
 nbs = 100; // Number of time steps
-DeltaTime = Floor[TimeFinal / nbs];
+dt = t_fin / nbs;
 
-Nb_max_iter = 30;
-relaxation_factor = 1;
-stop_criterion = 1e-5;
-reltol = 1e-7;
-abstol = 1e-5;
+Nb_max_iter = 50;
+relaxation_factor = 0.8;
+stop_criterion = 1e-8;
 
+NL_tol_abs = 1e-8;
+NL_tol_rel = 1e-8;
+NL_iter_max = 100;
 
 sigma[Coils] = 5.79e7;
 
@@ -137,7 +138,6 @@ Inductance[L_l] = 0.0001;
 // model
 Resistance[R_HV] = 3.7;
 }
-
 
 Include "integration.pro";
 Include "jacobian.pro";
@@ -229,9 +229,13 @@ Formulation {
 			{ Name Iz; Type Global; NameOfSpace Impedances_FS [Iz]; }
 		}
 		Equation {
-			Integral { [ nu[{d a}] * Dof{d a} , {d a} ]; In Omega; Jacobian JVol; Integration Integ; }
-			If (Flag_NL == 1)
-				Integral { JacNL [ dhdb_NL[{d a}] * Dof{d a} , {d a} ] ; In Omega_nl; Jacobian JVol; Integration Integ; }
+			Integral { [ nu[] * Dof{d a} , {d a} ]; In Omega_nf; Jacobian JVol; Integration Integ; }
+			If (Flag_NL)
+				Integral { [ nu[{d a}] * {d a} , {d a} ]; In Omega_nl; Jacobian JVol; Integration Integ; }
+				Integral { [ dhdb[{d a}] * Dof{d a} , {d a} ]; In Omega_nl; Jacobian JVol; Integration Integ; }
+				Integral { [ - dhdb[{d a}] * {d a} , {d a} ]; In Omega_nl; Jacobian JVol; Integration Integ; }
+			Else
+				Integral { [ nu[] * Dof{d a} , {d a} ]; In Omega_f; Jacobian JVol; Integration Integ; }
 			EndIf
 			
 			// js[0] should be of the form: N_coils[]/Ae_coils[] * Vector[0,0,1]
@@ -277,11 +281,19 @@ Resolution {
 				Generate[AV_S]; Solve[AV_S]; SaveSolution[AV_S];
 			Else
 				InitSolution[AV_S]; // provide initial condition
-				TimeLoopTheta[TimeInit, TimeFinal, DeltaTime, 1.]{
+				TimeLoopTheta[t_ini, t_fin, dt, 1.]{
 				// Euler implicit (1) -- Crank-Nicolson (0.5)
-					If(NbrRegions[Omega_nl])
-						IterativeLoop[Nb_max_iter, stop_criterion, relaxation_factor] {
-						GenerateJac[AV_S] ; SolveJac[AV_S] ;
+					Print[{$Time}, Format "Time %03g"]; 
+					If (NbrRegions[Omega_nl])
+						Generate[AV_S]; GetResidual[AV_S, $res0];
+						Evaluate[ $res = $res0, $iter = 0 ];
+						Print[{$iter, $res, $res / $res0},
+						Format "Residual %03g: abs %14.12e rel %14.12e"];
+						While[$res > NL_tol_abs && $res / $res0 > NL_tol_rel && $res / $res0 <= 1 && $iter < NL_iter_max]{
+							Solve[AV_S]; Generate[AV_S]; GetResidual[AV_S, $res];
+							Evaluate[ $iter = $iter + 1 ];
+							Print[{$iter, $res, $res / $res0},
+							Format "Residual %03g: abs %14.12e rel %14.12e"];
 						}
 					Else
 						Generate[AV_S]; Solve[AV_S];
@@ -322,8 +334,8 @@ PostOperation
 		{
 			Print[A, OnElementsOf Omega, File "resu/magneticVectorPotential.pos", Name "|A| (T-m)"];
 			Print[vecA, OnElementsOf Omega, File "resu/magneticVectorPotentialVector.pos", Name "A (T)"];
-			// Add Smoothing to be able to see the isolines
-			Print[B, OnElementsOf Omega, Smoothing, File "resu/magneticFluxDensity.pos", Name "|B| (T)"];
+			// Add "Smoothing" to be able to see the isolines, does not provide time dependent results
+			Print[B, OnElementsOf Omega, File "resu/magneticFluxDensity.pos", Name "|B| (T)"];
 			Print[vecB, OnElementsOf Omega, File "resu/magneticFluxDensityVector.pos", Name "B (T)"];
 			Print[J, OnElementsOf Coils, File "resu/currentDensities.pos", Name "Je (A-m^-2)"];
 		}
