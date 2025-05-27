@@ -44,12 +44,21 @@ corelegwidth = 0.5*(corewidth-(corecentrallegwidth+2*coreaperturewidth))
 airRadius = 0.2
 shellRadius = 1.2*airRadius
 
-strandRadius = 0.001
+strandRadius = 0.0018
 nbturns_1 = 9
 distancecenterstrands = 2*strandRadius+0.001
-layer1height = nbturns_1 * (2*strandRadius) + (nbturns_1-1) * distancecenterstrands
-separationcorelayer_1 = 0.002
-xposstrand_1 = 0.5*corecentrallegwidth+separationcorelayer_1+strandRadius
+layer1height = (nbturns_1-1) * distancecenterstrands
+separationcorelayer_1 = 0.0025
+xposstrand_1p = 0.5*corecentrallegwidth+separationcorelayer_1+strandRadius
+yposstrand_1 = -0.5*layer1height
+
+nbturns_2 = 8
+separationlayer_1a2 = 0.001
+xposstrand_2p = xposstrand_1p+separationlayer_1a2+2*strandRadius
+layer2height = (nbturns_2-1) * distancecenterstrands
+
+xposstrand_1n = (-1)*xposstrand_1p
+xposstrand_2n = (-1)*xposstrand_2p
 
 lc_1 = coreheight / 50
 lc_2 = shellRadius / 10
@@ -72,18 +81,42 @@ if mesh_comm.rank == model_rank:
 	core_tags = get_gdimtags(core[0], gdim)
 	
 	### Turns
-	strand_1 = cascade.addDisk(xposstrand_1, 0., 0., strandRadius, strandRadius)
-	print("strand_1", strand_1)
+	strands_1p = list()
+	for i in range(nbturns_1):
+		strands_1p.append(cascade.addDisk(xposstrand_1p, yposstrand_1+i*distancecenterstrands, 0., \
+		strandRadius, strandRadius, max(core_tags)+i+1))
+	print("strand number", strands_1p)
+	strands_2p = list()
+	for i in range(nbturns_2):
+		strands_2p.append(cascade.addDisk(xposstrand_2p, yposstrand_1+i*distancecenterstrands, 0., \
+		strandRadius, strandRadius, max(strands_1p)+i+1))
+	print("strand number", strands_2p)
+	strands_p = strands_1p+strands_2p
+	strands_1n = list()
+	for i in range(nbturns_1):
+		strands_1n.append(cascade.addDisk(xposstrand_1n, yposstrand_1+i*distancecenterstrands, 0., \
+		strandRadius, strandRadius, max(strands_2p)+i+1))
+	print("strand number", strands_1n)
+	strands_2n = list()
+	for i in range(nbturns_2):
+		strands_2n.append(cascade.addDisk(xposstrand_2n, yposstrand_1+i*distancecenterstrands, 0., \
+		strandRadius, strandRadius, max(strands_1n)+i+1))
+	print("strand number", strands_2n)
+	strands_n = strands_1n+strands_2n
+	strands = strands_p+strands_n
+	print("strands", strands)
 	
-	print("core", core[0])
+	print("core[0]", core[0]+[(gdim, i) for i in range(strands[0], strands[-1]+1)])
 	
 	airbulk = cascade.addDisk(0., 0., 0., airRadius, airRadius)
-	air = cascade.cut([(gdim, airbulk)], core[0], removeObject = True, removeTool = False)
+	air = cascade.cut([(gdim, airbulk)], core[0]+[(gdim, i) for i in range(strands[0], strands[-1]+1)], removeObject = True, removeTool = False)
 	air_tags = get_gdimtags(air[0], gdim)
+	print("air", air)
 	
 	shellbulk = cascade.addDisk(0., 0., 0., shellRadius, shellRadius)
 	shell = cascade.cut([(gdim, shellbulk)], [(gdim, i) for i in air_tags], removeObject = True, removeTool = False)
 	shell_tags = get_gdimtags(shell[0], gdim)
+	print("shell", shell_tags)
 	
 	cascade.removeAllDuplicates
 	
@@ -96,12 +129,31 @@ if mesh_comm.rank == model_rank:
 	shell_surf = mod.getBoundary([shell[0][0]], combined=True, oriented=False, recursive=False)
 	shell_dt = get_gdimtags(shell_surf, gdim-1)
 	
-	# ~ mod.addPhysicalGroup(gdim, core_tags, 1, name="core")
-	# ~ mod.addPhysicalGroup(gdim, [7], 2, name="coilr")
-	# ~ mod.addPhysicalGroup(gdim, [8], 3, name="coill")
-	# ~ mod.addPhysicalGroup(gdim, air_tags, 6, name="air")
-	# ~ mod.addPhysicalGroup(gdim, shell_tags[:-2], 7, name="shell")
-	# ~ mod.addPhysicalGroup(gdim-1, [shell_dt[1]], 8, name="boundary")
+	domainnocoils_tags = list()
+	coilsp_tags = list()
+	coilsn_tags = list() 
+	for i, v in enumerate(strands_p):
+		# ~ mod.addPhysicalGroup(gdim, [v], i+1, name="coilsp_"+str(i+1))
+		# ~ domain_tags.append(i+1)
+		coilsp_tags.append(v)
+	k = i+1
+	for i, v in enumerate(strands_n):
+		# ~ mod.addPhysicalGroup(gdim, [v], k+i+1, name="coilsn_"+str(i+1))
+		# ~ domain_tags.append(k+i+1)
+		coilsn_tags.append(v)
+	k = k+i+1
+	mod.addPhysicalGroup(gdim, coilsp_tags, k+1, name="coilsp")
+	mod.addPhysicalGroup(gdim, coilsn_tags, k+2, name="coilsn")
+	k = k+2
+	mod.addPhysicalGroup(gdim, core_tags, k+1, name="core")
+	domainnocoils_tags.append(k+1)
+	mod.addPhysicalGroup(gdim, air_tags, k+2, name="air")
+	domainnocoils_tags.append(k+2)
+	mod.addPhysicalGroup(gdim, [shell_tags[0]], k+3, name="shell")
+	domainnocoils_tags.append(k+3)
+	mod.addPhysicalGroup(gdim-1, [shell_dt[1]], k+4, name="boundary")
+	domainnocoils_tags.append(k+4)
+
 	
 	# ~ mod.setColor(core[0], 127, 127, 127, recursive=True)
 	# ~ mod.setColor([(gdim, 7)], 255, 0, 0, recursive=False)
@@ -114,6 +166,9 @@ if mesh_comm.rank == model_rank:
 	
 	meshing.removeDuplicateNodes
 	meshing.removeDuplicateElements
+	
+	meshing.addHomologyRequest("Homology", domainnocoils_tags, coilsn_tags+coilsp_tags)
+
 	
 	meshing.generate(gdim)
 	
