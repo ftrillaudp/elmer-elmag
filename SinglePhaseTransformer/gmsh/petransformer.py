@@ -21,7 +21,9 @@ geom = mod.geo
 mod.add(name)
 mod.add("boolean")
 
-# ~ gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)  
+# ~ gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+gmsh.option.setColor("General.BackgroundGradient", 255, 255, 255)
+# ~ gmsh.option.setColor("General.Background", 255, 255, 255)
 gmsh.option.setNumber('Mesh.Optimize', 1)
 gmsh.option.setNumber('Mesh.OptimizeNetgen', 1)
 gmsh.option.setNumber('Mesh.Algorithm3D', 10)
@@ -41,7 +43,7 @@ coreapertureheight = 0.047
 airgap = 0.002
 corecentrallegwidth = 0.019
 corelegwidth = 0.5*(corewidth-(corecentrallegwidth+2*coreaperturewidth))
-airRadius = 0.1
+airRadius = 0.075
 shellRadius = 1.2*airRadius
 
 strandRadius = 0.0018
@@ -59,6 +61,8 @@ layer2height = (nbturns_2-1) * distancecenterstrands
 
 xposstrand_1n = (-1)*xposstrand_1p
 xposstrand_2n = (-1)*xposstrand_2p
+
+nbw = nbturns_1+nbturns_2
 
 lc_1 = coreheight / 50
 lc_2 = shellRadius / 10
@@ -111,7 +115,9 @@ if mesh_comm.rank == model_rank:
 	air_tags = get_gdimtags(air[0], gdim)
 	
 	shellbulk = cascade.addDisk(0., 0., 0., shellRadius, shellRadius)
-	shell = cascade.cut([(gdim, shellbulk)], [(gdim, i) for i in air_tags], removeObject = True, removeTool = False)
+	shell = cascade.cut([(gdim, shellbulk)], [(gdim, i) for i in air_tags]+ \
+		[(gdim, i) for i in core_tags]+[(gdim, i) for i in strands], \
+		removeObject = True, removeTool = False)
 	shell_tags = get_gdimtags(shell[0], gdim)
 	
 	cascade.removeAllDuplicates
@@ -125,71 +131,91 @@ if mesh_comm.rank == model_rank:
 	shell_surf = mod.getBoundary([shell[0][0]], combined=True, oriented=False, recursive=False)
 	shell_dt = get_gdimtags(shell_surf, gdim-1)
 	
-	mod.addPhysicalGroup(gdim, core_tags, 1, name="core")
-	mod.addPhysicalGroup(gdim, air_tags, 2, name="air")
-	mod.addPhysicalGroup(gdim, [shell_tags[0]], 3, name="shell")
-	mod.addPhysicalGroup(gdim-1, [shell_dt[1]], 4, name="boundary")
-	
-	domain_tags = list()
-	for i in range(1,4):
-		domain_tags.append(i)
-	
-	coilsp_tags = list()
-	coilsn_tags = list()
-	k = 4
-	for i, v in enumerate(strands_p):
-		mod.addPhysicalGroup(gdim, [v], k+i+1, name="coilsp_"+str(i+1))
-		coilsp_tags.append(k+i+1)
-	k = k+i+1
-	for i, v in enumerate(strands_n):
-		mod.addPhysicalGroup(gdim, [v], k+i+1, name="coilsn_"+str(i+1))
-		coilsn_tags.append(k+i+1)
-	coils_tags = coilsp_tags+coilsn_tags
-	
+	strandsp_surfNodes = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_p)], combined=True, oriented=False, recursive=False)
+	strandsp_surfNodes_tags = get_gdimtags(strandsp_surfNodes, gdim-1)
+	strandsn_surfNodes = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_n)], combined=True, oriented=False, recursive=False)
+	strandsn_surfNodes_tags = get_gdimtags(strandsn_surfNodes, gdim-1)
+
 	meshing.removeDuplicateNodes
 	meshing.removeDuplicateElements
-
-	domain_tags = domain_tags+coils_tags
-	for i, v in enumerate(coils_tags):
-		index = domain_tags.index(v)
-		meshing.addHomologyRequest("Cohomology", domain_tags[:index]+domain_tags[index+1:], [], [gdim-1])
 	
-	# ~ for i, v in enumerate(coilsn_tags):
-		# ~ index = domainall_tags.index(v)
-		# ~ domain_tmp = domainall_tags[:index]+domainall_tags[index+1:]
-		# ~ meshing.addHomologyRequest("Cohomology", domain_tmp, [], [gdim-1])
+	k = 0
+	mod.addPhysicalGroup(gdim, core_tags, k+1, name="core")
+	mod.addPhysicalGroup(gdim, air_tags, k+2, name="air")
+	mod.addPhysicalGroup(gdim, [shell_tags[0]], k+3, name="shell")
+	mod.addPhysicalGroup(gdim-1, [shell_dt[1]], k+4, name="boundary")
 	
+	domain_tags = list()
+	for i in range(k+1,k+4):
+		domain_tags.append(i)
+	
+	k = k+4
+	wiresp_tags = list()
+	wiresn_tags = list()
+	for i, v in enumerate(strands_p):
+		mod.addPhysicalGroup(gdim, [v], k+i+1, name="wirep_"+str(i+1))
+		wiresp_tags.append(k+i+1)
+	
+	k = k+i+1
+	for i, v in enumerate(strands_n):
+		mod.addPhysicalGroup(gdim, [v], k+i+1, name="wiren_"+str(i+1))
+		wiresn_tags.append(k+i+1)
+	wires_tags = wiresp_tags+wiresn_tags
+	
+	k = k+i+1
+	edgewiresp_tags = list()
+	for i, v in enumerate(strandsp_surfNodes_tags):
+		mod.addPhysicalGroup(gdim-1, [v], k+i+1, name="edgewirep_"+str(i+1))
+		edgewiresp_tags.append(k+i+1)
+	
+	k = k+i+1
+	edgewiresn_tags = list()
+	for i, v in enumerate(strandsn_surfNodes_tags):
+		mod.addPhysicalGroup(gdim-1, [v], k+i+1, name="edgewiren_"+str(i+1))
+		edgewiresn_tags.append(k+i+1)
+	k = k+i+1
+	
+	domain_tags = domain_tags+wires_tags
+	for i, v in enumerate(wires_tags):
+		idx = domain_tags.index(v)
+		meshing.addHomologyRequest("Cohomology", domain_tags[:idx]+domain_tags[idx+1:], [], [gdim-1])
 	meshing.computeHomology
 	
-	
 	### Colors
-	mod.setColor(core[0], 127, 127, 127, recursive=True)
-	mod.setColor(air[0], 0, 128, 255, recursive=False)
-	mod.setColor(shell[0], 153, 153, 255, recursive=False)
-	mod.setColor([(gdim-1, shell_dt[1])], 255, 255, 255, recursive=False)
+	mod.setColor(core[0], 60, 60, 60, recursive=False)
+	mod.setColor(air[0], 50, 50, 255, recursive=False)
+	mod.setColor([shell[0][0]], 0, 100, 200, recursive=False)
+	mod.setColor([(gdim-1, shell_dt[1])], 150, 0, 75, recursive=False)
 	mod.setColor([(gdim, i) for i in range(strands_p[0], strands_p[-1]+1)], 255, 0, 0, recursive=False)
-	mod.setColor([(gdim, i) for i in range(strands_n[0], strands_n[-1]+1)], 255, 51, 51, recursive=False)
+	mod.setColor([(gdim, i) for i in range(strands_n[0], strands_n[-1]+1)], 255, 150, 50, recursive=False)
 	
 	meshing.generate(gdim)
 	
 	gmsh.write(name+".msh")
 
+# Launch the GUI to see the results:
+if '-nopopup' not in sys.argv:
+    gmsh.fltk.run()
+
 gmsh.finalize()
 
-# Build the input file for the solver	
-# ~ myFile0 = open(name+".par", "w")
-# ~ with myFile0 as file:
-	# ~ file.write("coreID = 1;\n")
-	# ~ file.write("coilID_HVr = 2;\n")
-	# ~ file.write("coilID_HVl = 3;\n")
-	# ~ file.write("coilID_LVr = 4;\n")
-	# ~ file.write("coilID_LVl = 5;\n")
-	# ~ file.write("airID = 6;\n")
-	# ~ file.write("shellID = 7;\n")
-	# ~ file.write("boundaryID = 8;\n")
-	# ~ file.write("Ae_HV = "+str(hvwidth*hvheight)+";\n")
-	# ~ file.write("Ae_LV = "+str(lvwidth*lvheight)+";\n")
-	# ~ file.write("corethickness = "+str(corethickness)+";\n")
-	# ~ file.write("airRadius = "+str(airRadius)+";\n"+"shellRadius = "+str(shellRadius)+";")
-# ~ myFile0.close()
+# ~ # Build the input file for the solver	
+myFile0 = open(name+".par", "w")
+with myFile0 as file:
+	file.write("airRadius = "+str(airRadius)+";\n"+"shellRadius = "+str(shellRadius)+";\n")
+	file.write("nbw = "+str(nbw)+";\n")
+	file.write("nbID = "+str(k)+";\n")
+	file.write("coreID = 1;\n")
+	file.write("airID = 2;\n")
+	file.write("shellID = 3;\n")
+	file.write("boundaryID = 4;\n")
+	for i, v in enumerate(wiresp_tags):
+		file.write("wirepID_"+str(i+1)+" = "+str(v)+";\n")
+	for i, v in enumerate(wiresn_tags):
+		file.write("wirenID_"+str(i+1)+" = "+str(v)+";\n")
+	for i, v in enumerate(edgewiresp_tags):
+		file.write("edgewirepID_"+str(i+1)+" = "+str(v)+";\n")
+	for i, v in enumerate(edgewiresn_tags):
+		file.write("edgewirenID_"+str(i+1)+" = "+str(v)+";\n")
+myFile0.close()
 
