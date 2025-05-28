@@ -73,6 +73,7 @@ def get_gdimtags(dimtags, gdim):
 
 
 if mesh_comm.rank == model_rank:
+	### Core
 	corebulk = cascade.addRectangle(-0.5*corewidth, -0.5*coreheight, 0., corewidth, coreheight, 1, cornerradius)
 	coretool_1 = cascade.addRectangle(-0.5*corecentrallegwidth-coreaperturewidth, -0.5*coreapertureheight, 0., coreaperturewidth, coreapertureheight, 2, cornerradius)
 	coretool_2 = cascade.addRectangle(0.5*corecentrallegwidth, -0.5*coreapertureheight, 0., coreaperturewidth, coreapertureheight, 3, cornerradius)
@@ -124,17 +125,15 @@ if mesh_comm.rank == model_rank:
 	shell_surf = mod.getBoundary([shell[0][0]], combined=True, oriented=False, recursive=False)
 	shell_dt = get_gdimtags(shell_surf, gdim-1)
 	
-
-	
 	mod.addPhysicalGroup(gdim, core_tags, 1, name="core")
 	mod.addPhysicalGroup(gdim, air_tags, 2, name="air")
 	mod.addPhysicalGroup(gdim, [shell_tags[0]], 3, name="shell")
 	mod.addPhysicalGroup(gdim-1, [shell_dt[1]], 4, name="boundary")
+	
 	domain_tags = list()
 	for i in range(1,4):
 		domain_tags.append(i)
-	print("domain", domain_tags)
-
+	
 	coilsp_tags = list()
 	coilsn_tags = list()
 	k = 4
@@ -145,32 +144,31 @@ if mesh_comm.rank == model_rank:
 	for i, v in enumerate(strands_n):
 		mod.addPhysicalGroup(gdim, [v], k+i+1, name="coilsn_"+str(i+1))
 		coilsn_tags.append(k+i+1)
-	print("coilsn", coilsn_tags)
-	
-	# ~ mod.setColor(core[0], 127, 127, 127, recursive=True)
-	# ~ mod.setColor([(gdim, 7)], 255, 0, 0, recursive=False)
-	# ~ mod.setColor([(gdim, 8)], 255, 51, 51, recursive=False)
-	# ~ mod.setColor([(gdim, 9)], 204, 102, 0, recursive=False)
-	# ~ mod.setColor([(gdim, 10)], 255, 153, 51, recursive=False)
-	# ~ mod.setColor(air[0], 0, 128, 255, recursive=False)
-	# ~ mod.setColor([(gdim, 16)], 153, 153, 255, recursive=False)
-	# ~ mod.setColor([(gdim-1, shell_dt[1])], 255, 255, 255, recursive=False)
+	coils_tags = coilsp_tags+coilsn_tags
 	
 	meshing.removeDuplicateNodes
 	meshing.removeDuplicateElements
 
-	domainall_tags = domain_tags+coilsp_tags+coilsn_tags
-	for i, v in enumerate(coilsp_tags):
-		index = domainall_tags.index(v)
-		domain_tmp = domainall_tags[:index]+domainall_tags[index+1:]
-		meshing.addHomologyRequest("Cohomology", domain_tmp, [], [gdim-1])
+	domain_tags = domain_tags+coils_tags
+	for i, v in enumerate(coils_tags):
+		index = domain_tags.index(v)
+		meshing.addHomologyRequest("Cohomology", domain_tags[:index]+domain_tags[index+1:], [], [gdim-1])
 	
-	for i, v in enumerate(coilsn_tags):
-		index = domainall_tags.index(v)
-		domain_tmp = domainall_tags[:index]+domainall_tags[index+1:]
-		meshing.addHomologyRequest("Cohomology", domain_tmp, [], [gdim-1])
+	# ~ for i, v in enumerate(coilsn_tags):
+		# ~ index = domainall_tags.index(v)
+		# ~ domain_tmp = domainall_tags[:index]+domainall_tags[index+1:]
+		# ~ meshing.addHomologyRequest("Cohomology", domain_tmp, [], [gdim-1])
 	
 	meshing.computeHomology
+	
+	
+	### Colors
+	mod.setColor(core[0], 127, 127, 127, recursive=True)
+	mod.setColor(air[0], 0, 128, 255, recursive=False)
+	mod.setColor(shell[0], 153, 153, 255, recursive=False)
+	mod.setColor([(gdim-1, shell_dt[1])], 255, 255, 255, recursive=False)
+	mod.setColor([(gdim, i) for i in range(strands_p[0], strands_p[-1]+1)], 255, 0, 0, recursive=False)
+	mod.setColor([(gdim, i) for i in range(strands_n[0], strands_n[-1]+1)], 255, 51, 51, recursive=False)
 	
 	meshing.generate(gdim)
 	
