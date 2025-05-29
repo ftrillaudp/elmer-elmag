@@ -12,9 +12,11 @@ Group {
 Core = Region[{coreID}];
 Air = Region[{airID}];
 Shell = Region[{shellID}];
+Dirichlet = Region[{boundaryID}];
 
 For i In {1:nbw}
   Omega_Cp~{i} = Region[{wirepID~{i}}];
+  Printf("Wire_p", wirepID~{i});
 	Omega_Cp += Region[{wirepID~{i}}];
   Gamma_Cp += Region[{edgewirepID~{i}}];
   Omega_Cn~{i} = Region[{wirenID~{i}}];
@@ -29,7 +31,9 @@ Gamma_C = Region[{Gamma_Cp, Gamma_Cn}];
 For i In {1:nbw}
 	Cutp~{i} = Region[{(nbID+1+2*nbw-i)}];
   Cutsp += Region[(nbID+1+2*nbw-i)];
+  Printf("Cuts_n", nbID+1+2*nbw-i);
 EndFor
+
 
 /// Cuts for negative wires
 For i In {1:nbw}
@@ -74,7 +78,7 @@ mu[Omega_f] = mur*mu0;
 
 rho[Omega_C] = 1.8e-6;
 
-freq = 60.;
+freq = 60;
 w = 2*Pi*freq; // pulsation
 t_ini = 0;
 nbp = 1; // Number of periods
@@ -82,12 +86,12 @@ t_fin = nbp /freq;
 nbs = 100; // Number of time steps
 dt = t_fin / nbs;
 /// Voltage source:
-V0 = 1;
+V0 = 10;
 phase_V = 0.;
 timeFunction[] = F_Sin_wt_p[]{w, phase_V};
 
 //Electrical circuitry:
-Rcl = 0.1; // resistance of current leads leads
+Rcl = 0.01; // resistance of current leads leads
 }
 
 Printf("Votage input", V0);
@@ -97,11 +101,14 @@ Include "jacobian.pro";
 
 
 Constraint {
+ { Name H_constraint; Type Assign;
+	Case { { Region Dirichlet; Value 0.0; } }
+ }
  { Name voltageConstraint; Case {} }
  { Name currentConstraint; Case {} }
- { Name currentSource; Case {} }
+ { Name voltageSource; Case {} }
  {
-  Name voltageSource;
+  Name currentSource;
   Case { { Region PowerSupply; Value V0; TimeFunction F_Sin_wt_p[]{w, phase_V}; } }
  }
  {
@@ -117,9 +124,9 @@ Constraint {
     EndFor
     For i In {1:nbw-1}
       k1 = nbw+1+i; k2 = nbw+2+i;
-      { Region Cutn~{i}; Branch{k1, k2}; }
+      { Region Cutn~{i}; Branch{k2, k1}; }
     EndFor
-    { Region Cutn~{nbw}; Branch{k2, 0}; }
+    { Region Cutn~{nbw}; Branch{0, k2}; }
   }
  }
 }
@@ -150,6 +157,7 @@ FunctionSpace {
   }
   Constraint
   {
+    { NameOfCoef ch_Node; EntityType NodesOf; NameOfConstraint H_constraint; }
    { NameOfCoef I_ct; EntityType GroupsOfEdgesOf; NameOfConstraint currentConstraint; }
    { NameOfCoef V_ct; EntityType GroupsOfEdgesOf; NameOfConstraint voltageConstraint; }
   }
@@ -185,8 +193,8 @@ Formulation {
    { Name H; Type Local; NameOfSpace H_FunctionSpace; }
    { Name I_ct; Type Global; NameOfSpace H_FunctionSpace[I_ct]; }
    { Name V_ct; Type Global; NameOfSpace H_FunctionSpace[V_ct]; }
-	 { Name I_nt; Type Global; NameOfSpace network_FunctionSpace[I_nt]; }
-	 { Name V_nt; Type Global; NameOfSpace network_FunctionSpace[V_nt]; }
+    { Name I_nt; Type Global; NameOfSpace network_FunctionSpace[I_nt]; }
+    { Name V_nt; Type Global; NameOfSpace network_FunctionSpace[V_nt]; }
   }
   Equation
   {
@@ -205,7 +213,7 @@ Formulation {
    // U = R * I in the resistance on the electrical circuit
    GlobalTerm { NeverDt [ Dof{V_nt}, {I_nt} ]; In Resistance; }
    GlobalTerm { NeverDt [ Rcl*Dof{I_nt}, {I_nt} ]; In Resistance; }
-   GlobalTerm { [ 0. * Dof{I_nt} , {I_nt} ]; In Current_Cir; }
+   //~ GlobalTerm { [ 0. * Dof{I_nt} , {I_nt} ]; In Current_Cir; }
    // Connections between the DoFs of the FEM and the network models
    GlobalEquation
    {
