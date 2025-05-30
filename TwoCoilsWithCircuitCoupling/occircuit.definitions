@@ -8,16 +8,16 @@
 $ Circuits = 2
 
 ! -----------------------------------------------------------------------------
-! Parameters of Circuit 1
+! Parameters of circuit 1
 ! -----------------------------------------------------------------------------
 
 ! General Parameters 
 $ S1 = 1.0
 
-! Parameters in Component 1: LV
-$ N_LV = 7	 ! Number of Turns
-$ R_LV = 0	 ! Coil Resistance
-$ Ns_LV = 1	 ! Sector/Symmetry Coefficient (e.g. 4 is 1/4 of the domain)
+! Parameters in Component 1: coil2
+$ N_coil2 = 7	 ! Number of Turns
+$ R_coil2 = 0	 ! Coil Resistance
+$ Ns_coil2 = 1	 ! Sector/Symmetry Coefficient (e.g. 4 is 1/4 of the domain)
 
 ! -----------------------------------------------------------------------------
 ! Matrix Size Declaration and Matrix Initialization
@@ -58,16 +58,16 @@ $ C.1.B(3,3) = 1
 
 
 ! -----------------------------------------------------------------------------
-!  Parameters of Circuit 2
+!  Parameters of circuit 2
 ! -----------------------------------------------------------------------------
 
 ! General Parameters 
 $ Rl = 1e6
 
-! Parameters in Component 2: HV
-$ N_HV = 840 ! Number of Turns
-$ R_HV = 0 ! Coil Resistance
-$ Ns_HV = 1 ! Sector/Symmetry Coefficient (e.g. 4 is 1/4 of the domain)
+! Parameters in Component 2: coil1
+$ N_coil1 = 840 ! Number of Turns
+$ R_coil1 = 0 ! Coil Resistance
+$ Ns_coil1 = 1 ! Sector/Symmetry Coefficient (e.g. 4 is 1/4 of the domain)
 
 ! -----------------------------------------------------------------------------
 ! Matrix Size Declaration and Matrix Initialization
@@ -102,7 +102,6 @@ $ C.2.B(2,2) = -Rl
 $ C.2.B(2,3) = 1
 $ C.2.B(3,1) = 1
 $ C.2.B(3,3) = -1
-
 
 ! -----------------------------------------------------------------------------
 ! End of Circuit
