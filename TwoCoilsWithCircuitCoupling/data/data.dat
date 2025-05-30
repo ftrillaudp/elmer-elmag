@@ -1,0 +1,6 @@
+$ coil1thickness = 0.005
+$ coil2thickness = 0.005
+$ coil1height = 0.005
+$ coil2height = 0.005
+$ Ae_coil1 = coil1thickness * coil1height
+$ Ae_coil2 = coil2thickness * coil2height

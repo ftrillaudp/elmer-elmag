@@ -2,5 +2,5 @@ $ coilHVthickness = 0.0175
 $ coilLVthickness = 0.012
 $ coilHVheight = 0.1216
 $ coilLVheight = 0.1086
-$ Ae_LV = coilLVthickness * coilHVheight
-$ Ae_HV = coilHVthickness * coilLVheight
+$ Ae_LV = coilLVthickness * coilLVheight
+$ Ae_HV = coilHVthickness * coilHVheight
