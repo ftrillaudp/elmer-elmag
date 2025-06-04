@@ -55,8 +55,8 @@ End
 !--- No need to give the body force for the circuit. By default, it is the body force 1
 !--- However, it is necessary for the heat source to provide a body force
 Body 1
-  Name = "HV"
-  Target Bodies(1) = $ HV
+  Name = "coil1"
+  Target Bodies(1) = $ coil1
   Equation = 1
   Material = 1
   Initial Condition = 1
@@ -64,8 +64,8 @@ Body 1
 End
 
 Body 2
-  Name = "LV"
-  Target Bodies(1) = $ LV
+  Name = "coil2"
+  Target Bodies(1) = $ coil2
   Equation = 1
   Material = 1
   Initial Condition = 1
@@ -106,10 +106,11 @@ Material 2
   Relative Permittivity = Real 1.0
   Electric Conductivity = Real 1000.0
 
-  H-B Curve = Variable "dummy"
-    Real Cubic Monotone
-        Include ./data/BHM1960Hz.dat
-    End
+  Relative Permeability = Real 1500.0
+!~   H-B Curve = Variable "dummy"
+!~     Real Cubic Monotone
+!~         Include ./data/BHM1960Hz.dat
+!~     End
 
   Density = Real 7860.0
   Heat Conductivity = 100.0
@@ -136,17 +137,17 @@ End
 
 !!! COMPONENTS !!!
 Component 1
-  Name = "HV"
-  Master Bodies Name = String "HV"
-  Master Bodies(1) = Integer $ HV
+  Name = "coil1"
+  Master Bodies Name = String "coil1"
+  Master Bodies(1) = Integer $ coil1
   Coil Type = "Stranded"
-  Number of Turns = Real $ N_HV
-  !Resistance = Real $ R_HV
+  Number of Turns = Real $ N_coil1
+  !Resistance = Real $ R_coil1
  
   ! Additions for 3D Coil
   Coil Use W Vector = Logical True
   W Vector Variable Name = String "CoilCurrent e"
-  Electrode Area = Real $ Ae_HV
+  Electrode Area = Real $ Ae_coil1
   
   !Desired Current Density = Real 1.0
 
@@ -156,17 +157,17 @@ Component 1
 End
 
 Component 2
-  Name = "LV"
-  Master Bodies Name = String "LV"
-  Master Bodies(1) = Integer $ LV
+  Name = "coil2"
+  Master Bodies Name = String "coil2"
+  Master Bodies(1) = Integer $ coil2
   Coil Type = "Stranded"
-  Number of Turns = Real $ N_LV
-  !Resistance = Real $ R_LV
+  Number of Turns = Real $ N_coil2
+  !Resistance = Real $ R_coil1
  
   ! Additions for 3D Coil
   Coil Use W Vector = Logical True
   W Vector Variable Name = String "CoilCurrent e"
-  Electrode Area = Real $ Ae_LV
+  Electrode Area = Real $ Ae_coil2
   
   !Desired Current Density = Real 1.0
 
@@ -208,7 +209,7 @@ Equation 2
 End
 
 
-!!! SOLVERS !!!
+!!! SOcoil2ERS !!!
 Solver 1  !--- CoilSolver: Current density in closed coil
   Exec Solver = Before All
   Equation = "CoilSolver"

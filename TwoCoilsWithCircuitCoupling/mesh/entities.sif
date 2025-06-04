@@ -1,0 +1,30 @@
+!------ Skeleton for body section -----
+Body 1
+  Name = air
+End
+
+Body 2
+  Name = core
+End
+
+Body 3
+  Name = coil1
+End
+
+Body 4
+  Name = coil2
+End
+
+!------ Skeleton for boundary section -----
+Boundary Condition 1
+  Name = airboundary
+End
+
+Boundary Condition 2
+  Name = bnry6
+End
+
+Boundary Condition 3
+  Name = bnry7
+End
+

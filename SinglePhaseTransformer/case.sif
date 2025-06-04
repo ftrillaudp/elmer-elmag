@@ -177,7 +177,7 @@ Component 2
   Master Bodies(1) = Integer $ LV
   Coil Type = "Stranded"
   Number of Turns = Real $ N_LV
-  !Resistance = Real $ R_HV
+  !Resistance = Real $ R_LV
  
   ! Additions for 3D Coil
   Coil Use W Vector = Logical True
