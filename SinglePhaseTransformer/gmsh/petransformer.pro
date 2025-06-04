@@ -16,11 +16,12 @@ Dirichlet = Region[{boundaryID}];
 
 For i In {1:nbw}
   Omega_Cp~{i} = Region[{wirepID~{i}}];
-  Printf("Wire_p", wirepID~{i});
-	Omega_Cp += Region[{wirepID~{i}}];
+//  Printf("Wire_p", wirepID~{i});
+  Omega_Cp += Region[{wirepID~{i}}];
   Gamma_Cp += Region[{edgewirepID~{i}}];
   Omega_Cn~{i} = Region[{wirenID~{i}}];
-	Omega_Cn += Region[{wirenID~{i}}];
+//  Printf("Wire_n", wirenID~{i});
+  Omega_Cn += Region[{wirenID~{i}}];
   Omega_Cn~{i} = Region[{wirenID~{i}}];
   Gamma_Cn += Region[{edgewirenID~{i}}];
 EndFor
@@ -29,16 +30,17 @@ Gamma_C = Region[{Gamma_Cp, Gamma_Cn}];
 
 /// Cuts for positive wires
 For i In {1:nbw}
-	Cutp~{i} = Region[{(nbID+1+2*nbw-i)}];
-  Cutsp += Region[(nbID+1+2*nbw-i)];
-  Printf("Cuts_n", nbID+1+2*nbw-i);
+    Cutp~{i} = Region[{(nbID+1+2*nbw-i)}];
+    Cutsp += Region[(nbID+1+2*nbw-i)];
+//    Printf("Cuts_p", nbID+1+2*nbw-i);
 EndFor
 
 
 /// Cuts for negative wires
 For i In {1:nbw}
-	Cutn~{i} = Region[{(nbID+1+nbw-i)}];
-  Cutsn += Region[(nbID+1+nbw-i)];
+    Cutn~{i} = Region[{(nbID+1+nbw-i)}];
+    Cutsn += Region[(nbID+1+nbw-i)];
+//    Printf("Cuts_n", nbID+1+nbw-i);
 EndFor
 Cuts = Region[{Cutsp, Cutsn}];
 
@@ -56,7 +58,7 @@ Resistance = Region[{resistanceID}];
 Network = Region[{PowerSupply, Resistance}];
 Current_Cir = Region[{}];
 /*
-Elementary electrical circuitry. The resistance of the coil is negligible in comparison of the resistance of the current leads Rcl.
+Elementary electrical circuitry. The resistance of the coil is Rcl.
  ________ PS __________________
 |														   |
 |														  Rcl
@@ -76,7 +78,7 @@ mur = 1500;
 mu[Omega_nf] = mu0;
 mu[Omega_f] = mur*mu0;
 
-rho[Omega_C] = 1.8e-6;
+rho[Omega_C] = 1.86e-6;
 
 freq = 60;
 w = 2*Pi*freq; // pulsation
@@ -86,12 +88,12 @@ t_fin = nbp /freq;
 nbs = 100; // Number of time steps
 dt = t_fin / nbs;
 /// Voltage source:
-V0 = 10;
+V0 = 1;
 phase_V = 0.;
-timeFunction[] = F_Sin_wt_p[]{w, phase_V};
+timeFunction[] = 1; //F_Sin_wt_p[]{w, phase_V};
 
 //Electrical circuitry:
-Rcl = 0.01; // resistance of current leads leads
+Rcl = 0.1; // resistance of current leads leads
 }
 
 Printf("Votage input", V0);
@@ -117,16 +119,50 @@ Constraint {
   {
     { Region PowerSupply; Branch {0, 1}; }
     { Region Resistance; Branch {1, 2}; }
-		// Branching in series the wires. A trick is used to take care of the bug on the cut direction (inverse the sense of the branch).
-    For i In {1:nbw}
-      k1 = 1+i; k2 = 2+i;
-      { Region Cutp~{i}; Branch{k1, k2}; }
-    EndFor
-    For i In {1:nbw-1}
-      k1 = nbw+1+i; k2 = nbw+2+i;
-      { Region Cutn~{i}; Branch{k2, k1}; }
-    EndFor
-    { Region Cutn~{nbw}; Branch{0, k2}; }
+    // Branching in series the wires. A trick is used to take care of the bug on the cut direction (inverse the sense of the branch).
+    //For i In {1:nbw}
+      //k1 = 1+i; k2 = 2+i;
+      //{ Region Cutp~{i}; Branch{k1, k2}; }
+      { Region Cutp_1; Branch{2, 3}; }
+      { Region Cutp_2; Branch{3, 4}; }
+      { Region Cutp_3; Branch{4, 5}; }
+      { Region Cutp_4; Branch{5, 6}; }
+      { Region Cutp_5; Branch{6, 7}; }
+      { Region Cutp_6; Branch{7, 8}; }
+      { Region Cutp_7; Branch{8, 9}; }
+      { Region Cutp_8; Branch{9, 10}; }
+      { Region Cutp_9; Branch{10, 11}; }
+      { Region Cutp_10; Branch{11, 12}; }
+      { Region Cutp_11; Branch{12, 13}; }
+      { Region Cutp_12; Branch{13, 14}; }
+      { Region Cutp_13; Branch{14, 15}; }
+      { Region Cutp_14; Branch{15, 16}; }
+      { Region Cutp_15; Branch{16, 17}; }
+      { Region Cutp_16; Branch{17, 18}; }
+      { Region Cutp_17; Branch{18, 19}; }
+    //EndFor
+   // For i In {1:nbw-1}
+    //  k1 = nbw+1+i; k2 = nbw+2+i;
+     // { Region Cutn~{i}; Branch{k2, k1}; }
+      { Region Cutn_1; Branch{19, 20}; }
+      { Region Cutn_2; Branch{20, 21}; }
+      { Region Cutn_3; Branch{21, 22}; }
+      { Region Cutn_4; Branch{22, 23}; }
+      { Region Cutn_5; Branch{23, 24}; }
+      { Region Cutn_6; Branch{24, 25}; }
+      { Region Cutn_7; Branch{25, 26}; }
+      { Region Cutn_8; Branch{26, 27}; }
+      { Region Cutn_9; Branch{27, 28}; }
+      { Region Cutn_10; Branch{28, 29}; }
+      { Region Cutn_11; Branch{29, 30}; }
+      { Region Cutn_12; Branch{30, 31}; }
+      { Region Cutn_13; Branch{31, 32}; }
+      { Region Cutn_14; Branch{32, 33}; }
+      { Region Cutn_15; Branch{33, 34}; }
+      { Region Cutn_16; Branch{34, 35}; }
+      { Region Cutn_17; Branch{35, 0}; }
+    //EndFor
+    //{ Region Cutn~{nbw}; Branch{0, k2}; }
   }
  }
 }
@@ -158,8 +194,8 @@ FunctionSpace {
   Constraint
   {
     { NameOfCoef ch_Node; EntityType NodesOf; NameOfConstraint H_constraint; }
-   { NameOfCoef I_ct; EntityType GroupsOfEdgesOf; NameOfConstraint currentConstraint; }
-   { NameOfCoef V_ct; EntityType GroupsOfEdgesOf; NameOfConstraint voltageConstraint; }
+    { NameOfCoef I_ct; EntityType GroupsOfEdgesOf; NameOfConstraint currentConstraint; }
+    { NameOfCoef V_ct; EntityType GroupsOfEdgesOf; NameOfConstraint voltageConstraint; }
   }
  }
  {
@@ -235,8 +271,8 @@ Resolution {
 		{
       CreateDirectory["resu"]; // create directory to store result files
       InitSolution[H_System]; // provide initial condition
-      TimeLoopTheta[t_ini, t_fin, dt, 1.]{
-				// Euler implicit (1) -- Crank-Nicolson (0.5)
+      TimeLoopTheta[t_ini, t_fin, dt, 0.5]{
+      // Euler implicit (1) -- Crank-Nicolson (0.5)
         Generate[H_System]; Solve[H_System]; SaveSolution[H_System];
         //~ Test[GetNumberRunTime[visualization]{"Output/PostProcessing/Visualization"}]{PostOperation[onFlightVisualization];}
       }
@@ -254,18 +290,15 @@ PostProcessing
         Quantity
         {
             {Name currentDensity; Value{Local{[{d H}]; In Omega_C; Jacobian JVol;}}}
-            {Name currentDensityM; Value{Local{[Norm[{d H}]]; In Omega_C; Jacobian JVol;}}}
             {Name magneticFluxDensityM; Value{Local{[ mu[]*Norm[{H}] ]; In Omega; Jacobian JVol;}}}
             {Name magneticFluxDensityV; Value{Local{[ mu[]*{H} ]; In Omega; Jacobian JVol;}}}
-            {Name magneticFluxDensityX; Value{Local{[ mu[]*Norm[CompX[{H}]] ]; In Omega; Jacobian JVol;}}}
-            {Name magneticFluxDensityY; Value{Local{[ mu[]*Norm[CompY[{H}]] ]; In Omega; Jacobian JVol;}}}
             For i In{1:nbw}
               {Name In_ct~{i}; Value{Term{[ {I_ct} ]; In Cutn~{i};}}}
               {Name Vn_ct~{i}; Value{Term{[ {V_ct} ]; In Cutn~{i};}}}
               {Name Zn_ct~{i}; Value{Term{[ {V_ct}/{I_ct} ]; In Cutn~{i};}}}
               {Name current~{i}; Value{Integral{[ CompZ[{d H}] ]; In Omega_Cn~{i}; Jacobian JVol; Integration Integ;}}}
             EndFor
-						{Name totalCurrent; Value{Integral{[ CompZ[{d H}] ]; In Omega_C; Jacobian JVol; Integration Integ;}}}
+            {Name totalCurrent; Value{Integral{[ CompZ[{d H}] ]; In Omega_C; Jacobian JVol; Integration Integ;}}}
             {Name losses; Value{Integral{[ rho[]*SquNorm[{d H}] ]; In Omega_C; Jacobian JVol; Integration Integ;}}}
         }
     }
@@ -282,7 +315,6 @@ PostOperation
             Print[losses[Omega_C], OnGlobal, Format TimeTable, File "resu/losses.dat", Name "Q (W)" ];
             Print[totalCurrent[Omega_C], OnGlobal, Format TimeTable, File "resu/totalCurrent.dat", Name "Total current (A-turns)"]; 
             Print[currentDensity, OnElementsOf Omega_C, File "resu/currentDensity.pos", Name "J (A-m⁻²)"];
-            Print[currentDensityM, OnElementsOf Omega_C, File "resu/currentDensityM.pos", Name "|J| (A-m⁻²)"];
             Print[magneticFluxDensityM, OnElementsOf Omega, File "resu/magneticFluxDensityM.pos", Name "|B| (T)"];
             Print[magneticFluxDensityV, OnElementsOf Omega, File "resu/magneticFluxDensityV.pos", Name "B (T)"];
           Else
@@ -291,7 +323,6 @@ PostOperation
             Print[magneticFluxDensityX, OnElementsOf Omega, File "resu/magneticFluxDensityX.pos", Name "|BX| (T)"];
             Print[magneticFluxDensityY, OnElementsOf Omega, File "resu/magneticFluxDensityY.pos", Name "|BY| (T)"];
             Print[currentDensity, OnElementsOf Omega_C, File "resu/currentDensity.pos", Name "J (A-m⁻²)"];
-             Print[currentDensityM, OnElementsOf Omega_C, File "resu/currentDensityM.pos", Name "|J| (A-m⁻²)"];
             Print[magneticFluxDensityA[Omega_C], OnGlobal, Format TimeTable, File "resu/magneticFluxDensityA.dat", Name "B_{av} (T)" ];
             Print[totalCurrent[Omega_C], OnGlobal, Format TimeTable, File "resu/totalCurrent.dat", Name "Total current (A-turns)"];
             Print[losses[Omega_C], OnGlobal, Format TimeTable, File "resu/losses.dat", Name "Q (W)" ];
