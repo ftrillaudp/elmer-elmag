@@ -205,6 +205,7 @@ with myFile0 as file:
 	file.write("airRadius = "+str(airRadius)+";\n"+"shellRadius = "+str(shellRadius)+";\n")
 	file.write("nbw = "+str(nbw)+";\n")
 	file.write("nbID = "+str(k)+";\n")
+	file.write("corethickness = 0.01;\n")
 	file.write("coreID = 1;\n")
 	file.write("airID = 2;\n")
 	file.write("shellID = 3;\n")

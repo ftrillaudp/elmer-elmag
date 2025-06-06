@@ -1,22 +1,26 @@
 /*
 Author: F. Trillaud <ftrillaudp@gmail.com>
-Date: May 2025
+Date: 04/17/2025
+NB: Based on inductor example by C. Geuzaine
 */
 
-
 Include "petransformer.par";
+Include "BH.pro"; // nonlinear BH caracteristic of magnetic material
+
+Flag_NL = 1; // if 0 = air (frequency and time domain), 1 == iron (time domain))
+Flag_freq = 0; // frequency domain, linear case
+If (Flag_freq)
+	Flag_NL = 0;
+EndIf
 
 
-Group {
-/// Regions ///
-Core = Region[{coreID}];
-Air = Region[{airID}];
-Shell = Region[{shellID}];
-Dirichlet = Region[{boundaryID}];
+Group
+{
+/// Inductors
 
 For i In {1:nbw}
   Omega_Cp~{i} = Region[{wirepID~{i}}];
-//  Printf("Wire_p", wirepID~{i});
+//~ Printf("Wire_p", wirepID~{i});
   Omega_Cp += Region[{wirepID~{i}}];
   Gamma_Cp += Region[{edgewirepID~{i}}];
   Omega_Cn~{i} = Region[{wirenID~{i}}];
@@ -28,336 +32,327 @@ EndFor
 Omega_C = Region[{Omega_Cp, Omega_Cn}];
 Gamma_C = Region[{Gamma_Cp, Gamma_Cn}];
 
-/// Cuts for positive wires
-For i In {1:nbw}
-    Cutp~{i} = Region[{(nbID+1+2*nbw-i)}];
-    Cutsp += Region[(nbID+1+2*nbw-i)];
-//    Printf("Cuts_p", nbID+1+2*nbw-i);
-EndFor
+/// For the core:
+Core = Region[{coreID}];
 
 
-/// Cuts for negative wires
-For i In {1:nbw}
-    Cutn~{i} = Region[{(nbID+1+nbw-i)}];
-    Cutsn += Region[(nbID+1+nbw-i)];
-//    Printf("Cuts_n", nbID+1+nbw-i);
-EndFor
-Cuts = Region[{Cutsp, Cutsn}];
+Shell = Region[{shellID}];
+Air = Region[{airID, shellID}];
 
-/// Domains (set of regions) ///
-Omega_CC = Region[{Air, Core, Shell}]; // non conductive domain
-Omega = Region[{Omega_CC, Omega_C}]; // Full domain
-Omega_nf = Region[{Air, Shell, Omega_C}];
-Omega_f = Region[{Core}];
 
-/// Electrical circuitry (dummy regions):
-powerSupplyID = 10000;
-resistanceID = 20000;
-PowerSupply = Region[{powerSupplyID}];
-Resistance = Region[{resistanceID}];
-Network = Region[{PowerSupply, Resistance}];
-Current_Cir = Region[{}];
-/*
-Elementary electrical circuitry. The resistance of the coil is Rcl.
- ________ PS __________________
-|														   |
-|														  Rcl
-|__cut_n ... cut_2 -- cut_1 ___|
-*/
+Omega_nf = Region[{Air, Omega_C}]; // non ferromagnetic materials
+Omega_f = Region[{Core}]; // Ferromagnetic material
+Omega_CC = Region[{Air, Core}]; // Non conducting region
+
+If (Flag_NL)
+	Omega_nl = Region[{Core}]; // Non linear material
+Else
+	Omega_nl = Region[{ }];
+EndIf
+
+Omega = Region[{Omega_C, Omega_CC}];
+
+/// Boundary:
+Gamma_dirichlet = Region[{boundaryID}];
+Gamma_treeCotreeGauge = Region[{boundaryID}];
+
+// Empty Groups to be filled
+Resistance_Cir  = Region[{}]; // all resistances
+Inductance_Cir  = Region[{}] ; // all inductances
+Capacitance_Cir = Region[{}] ; // all capacitances
+SourceV_Cir = Region[{}]; // all voltage sources
+SourceI_Cir = Region[{}]; // all current sources
+
+// Primary side
+V_p = Region[10001]; // arbitrary region number (not linked to the mesh)
+SourceV_Cir += Region[{V_p}];
+R_p = Region[10002]; // arbitrary region number (not linked to the mesh)
+Resistance_Cir += Region[{R_p}];
+
+Impedances_Cir = Region[ {Resistance_Cir, Inductance_Cir} ];
+// all circuit sources
+Sources_Cir = Region[ {SourceV_Cir, SourceI_Cir} ];
+// all circuit elements
+Omega_Cir = Region[ {Impedances_Cir, Sources_Cir} ];
 }
 
 
-Function {
-eco_pos = 1;
-visualization = 0;
-flag_restart = 0;
-/// Physical constants:
-mu0 = 4*Pi*1e-7;
-mur = 1500;
+Function
+{
+mu0 = 4.0*Pi*1e-7;
+nu[Omega_nf] = 1./mu0;
+If (Flag_NL)
+	nu[Core] = nu_M19[$1];
+	dhdb_NL[Core] = dhdb_M19_NL[$1];
+	dhdb[Core] = dhdb_M19[$1];
+Else
+	mu_r = 1500.0;
+	nu[Core] = 1./(mu_r*mu0);
+EndIf
 
-mu[Omega_nf] = mu0;
-mu[Omega_f] = mur*mu0;
+// To be defined separately for each coil portion, to fix the convention of
+// positive current (1: along Oz, -1: along -Oz)
+vDir[Omega_Cp] = 1;
+vDir[Omega_Cn] = -1;
 
-rho[Omega_C] = 1.86e-6;
-
-freq = 60;
+freq = 60.;
 w = 2*Pi*freq; // pulsation
+Je[Omega_C] = Vector[0, 0, vDir[]]; // Engineering current density: F_Sin_wt_p[]{w,phase};
+
 t_ini = 0;
 nbp = 1; // Number of periods
 t_fin = nbp /freq;
 nbs = 100; // Number of time steps
 dt = t_fin / nbs;
-/// Voltage source:
-V0 = 1;
-phase_V = 0.;
-timeFunction[] = 1; //F_Sin_wt_p[]{w, phase_V};
 
-//Electrical circuitry:
-Rcl = 0.1; // resistance of current leads leads
+Nb_max_iter = 50;
+relaxation_factor = 0.8;
+stop_criterion = 1e-8;
+
+NL_tol_abs = 1e-8;
+NL_tol_rel = 1e-8;
+NL_iter_max = 100;
+
+sigma[Omega_C] = 5.79e7;
+
+// For a correct definition of the voltage
+CoefGeos[Omega_C] = vDir[] * corethickness;
+
+deg2rad = Pi/180; // degrees to radiants
+// Input RMS voltage (half of the voltage because of symmetry; half coils are
+// defined!)
+val_V_p = 10.;
+phase_V_p = 0. * deg2rad;
+
+Resistance[R_p] = 3.7;
 }
-
-Printf("Votage input", V0);
 
 Include "integration.pro";
 Include "jacobian.pro";
 
 
-Constraint {
- { Name H_constraint; Type Assign;
-	Case { { Region Dirichlet; Value 0.0; } }
- }
- { Name voltageConstraint; Case {} }
- { Name currentConstraint; Case {} }
- { Name voltageSource; Case {} }
- {
-  Name currentSource;
-  Case { { Region PowerSupply; Value V0; TimeFunction F_Sin_wt_p[]{w, phase_V}; } }
- }
- {
-  Name networkConstraint; Type Network; 
-  Case Circuit
-  {
-    { Region PowerSupply; Branch {0, 1}; }
-    { Region Resistance; Branch {1, 2}; }
-    // Branching in series the wires. A trick is used to take care of the bug on the cut direction (inverse the sense of the branch).
-    //For i In {1:nbw}
-      //k1 = 1+i; k2 = 2+i;
-      //{ Region Cutp~{i}; Branch{k1, k2}; }
-      { Region Cutp_1; Branch{2, 3}; }
-      { Region Cutp_2; Branch{3, 4}; }
-      { Region Cutp_3; Branch{4, 5}; }
-      { Region Cutp_4; Branch{5, 6}; }
-      { Region Cutp_5; Branch{6, 7}; }
-      { Region Cutp_6; Branch{7, 8}; }
-      { Region Cutp_7; Branch{8, 9}; }
-      { Region Cutp_8; Branch{9, 10}; }
-      { Region Cutp_9; Branch{10, 11}; }
-      { Region Cutp_10; Branch{11, 12}; }
-      { Region Cutp_11; Branch{12, 13}; }
-      { Region Cutp_12; Branch{13, 14}; }
-      { Region Cutp_13; Branch{14, 15}; }
-      { Region Cutp_14; Branch{15, 16}; }
-      { Region Cutp_15; Branch{16, 17}; }
-      { Region Cutp_16; Branch{17, 18}; }
-      { Region Cutp_17; Branch{18, 19}; }
-    //EndFor
-   // For i In {1:nbw-1}
-    //  k1 = nbw+1+i; k2 = nbw+2+i;
-     // { Region Cutn~{i}; Branch{k2, k1}; }
-      { Region Cutn_1; Branch{19, 20}; }
-      { Region Cutn_2; Branch{20, 21}; }
-      { Region Cutn_3; Branch{21, 22}; }
-      { Region Cutn_4; Branch{22, 23}; }
-      { Region Cutn_5; Branch{23, 24}; }
-      { Region Cutn_6; Branch{24, 25}; }
-      { Region Cutn_7; Branch{25, 26}; }
-      { Region Cutn_8; Branch{26, 27}; }
-      { Region Cutn_9; Branch{27, 28}; }
-      { Region Cutn_10; Branch{28, 29}; }
-      { Region Cutn_11; Branch{29, 30}; }
-      { Region Cutn_12; Branch{30, 31}; }
-      { Region Cutn_13; Branch{31, 32}; }
-      { Region Cutn_14; Branch{32, 33}; }
-      { Region Cutn_15; Branch{33, 34}; }
-      { Region Cutn_16; Branch{34, 35}; }
-      { Region Cutn_17; Branch{35, 0}; }
-    //EndFor
-    //{ Region Cutn~{nbw}; Branch{0, k2}; }
-  }
- }
+Constraint
+{
+	{ Name A_constraint; Type Assign;
+		Case { { Region Gamma_dirichlet; Value 0.0; } }
+	}
+	{ Name Current_2D; Case { } }
+	{ Name Voltage_2D; Case { } }
+	{ Name Current_Cir; Case { } }
+	{ Name Voltage_Cir;
+		Case {
+				{	Region V_p; Value val_V_p; 
+					TimeFunction F_Sin_wt_p[]{w, phase_V_p};
+				}
+		}
+	}
+	{ Name ElectricalCircuit; Type Network;
+		Case Circuit_1 {
+						{ Region V_p; Branch {1,2}; }
+						{ Region R_p; Branch {2,3}; }
+						{ Region Omega_Cp_1; Branch{3, 4}; }
+						{ Region Omega_Cp_2; Branch{4, 5}; }
+						{ Region Omega_Cp_3; Branch{5, 6}; }
+						{ Region Omega_Cp_4; Branch{6, 7}; }
+						{ Region Omega_Cp_5; Branch{7, 8}; }
+						{ Region Omega_Cp_6; Branch{8, 9}; }
+						{ Region Omega_Cp_7; Branch{9, 10}; }
+						{ Region Omega_Cp_8; Branch{10, 11}; }
+						{ Region Omega_Cp_9; Branch{11, 12}; }
+						{ Region Omega_Cp_10; Branch{12, 13}; }
+						{ Region Omega_Cp_11; Branch{13, 14}; }
+						{ Region Omega_Cp_12; Branch{14, 15}; }
+						{ Region Omega_Cp_13; Branch{15, 16}; }
+						{ Region Omega_Cp_14; Branch{16, 17}; }
+						{ Region Omega_Cp_15; Branch{17, 18}; }
+						{ Region Omega_Cp_16; Branch{18, 19}; }
+						{ Region Omega_Cp_17; Branch{19, 20}; }
+						
+						{ Region Omega_Cn_1; Branch{20, 21}; }
+						{ Region Omega_Cn_2; Branch{21, 22}; }
+						{ Region Omega_Cn_3; Branch{22, 23}; }
+						{ Region Omega_Cn_4; Branch{23, 24}; }
+						{ Region Omega_Cn_5; Branch{24, 25}; }
+						{ Region Omega_Cn_6; Branch{25, 26}; }
+						{ Region Omega_Cn_7; Branch{26, 27}; }
+						{ Region Omega_Cn_8; Branch{27, 28}; }
+						{ Region Omega_Cn_9; Branch{28, 29}; }
+						{ Region Omega_Cn_10; Branch{29, 30}; }
+						{ Region Omega_Cn_11; Branch{30, 31}; }
+						{ Region Omega_Cn_12; Branch{31, 32}; }
+						{ Region Omega_Cn_13; Branch{32, 33}; }
+						{ Region Omega_Cn_14; Branch{33, 34}; }
+						{ Region Omega_Cn_15; Branch{34, 35}; }
+						{ Region Omega_Cn_16; Branch{35, 36}; }
+						{ Region Omega_Cn_17; Branch{36, 1}; }
+		}
+	}
 }
 
 
 FunctionSpace {
- {
-  Name H_FunctionSpace; Type Form1;
-  BasisFunction
-  {
-   {
-    Name wh_Edge; NameOfCoef ch_Edge;
-    Function BF_Edge; Support Omega_C; Entity EdgesOf[All, Not Gamma_C];
-   }
-   {
-    Name wh_Node; NameOfCoef ch_Node;
-    Function BF_GradNode; Support Omega; Entity NodesOf[Omega_CC];
-   }
-   {
-    Name wV_Edge; NameOfCoef cV_Edge;
-    Function BF_GroupOfEdges; Support Omega; Entity GroupsOfEdgesOf[Cuts];
-   }
-  }
-  GlobalQuantity
-  {
-   { Name I_ct; Type AliasOf; NameOfCoef cV_Edge; }
-   { Name V_ct; Type AssociatedWith; NameOfCoef cV_Edge; }
-  }
-  Constraint
-  {
-    { NameOfCoef ch_Node; EntityType NodesOf; NameOfConstraint H_constraint; }
-    { NameOfCoef I_ct; EntityType GroupsOfEdgesOf; NameOfConstraint currentConstraint; }
-    { NameOfCoef V_ct; EntityType GroupsOfEdgesOf; NameOfConstraint voltageConstraint; }
-  }
- }
- {
-  Name network_FunctionSpace; Type Scalar;
-  BasisFunction
-  {
-   {
-    Name w_nodal; NameOfCoef c_nodal;
-    Function BF_Region; Support Network; Entity Network;
-    }
-   }
-    GlobalQuantity
-    {
-      { Name I_nt; Type AliasOf; NameOfCoef c_nodal; }
-      { Name V_nt; Type AssociatedWith; NameOfCoef c_nodal; }
-    }
-    Constraint
-    {
-      { NameOfCoef I_nt; EntityType Region; NameOfConstraint currentSource; }
-      { NameOfCoef V_nt; EntityType Region; NameOfConstraint voltageSource; }
-    }
-  }
+	{ Name A_FS; Type Form1P;
+		BasisFunction {
+			{ Name s_n; NameOfCoef a_n; Function BF_PerpendicularEdge;
+			Support Omega; Entity NodesOf[All]; }
+		}
+		Constraint {
+			{ NameOfCoef a_n; EntityType NodesOf; NameOfConstraint A_constraint; }
+		}
+	}
+	// Current in stranded coil (2D)
+	{ Name J_FS; Type Vector;
+		BasisFunction {
+			{ Name sr; NameOfCoef ir; Function BF_RegionZ; Support Omega_C; Entity Omega_C; }
+		}
+		GlobalQuantity {
+			{ Name Is; Type AliasOf; NameOfCoef ir; }
+			{ Name Us; Type AssociatedWith; NameOfCoef ir; }
+		}
+		Constraint {
+			{ NameOfCoef Us; EntityType Region; NameOfConstraint Voltage_2D; }
+			{ NameOfCoef Is; EntityType Region; NameOfConstraint Current_2D; }
+		}
+	}
+	// UZ and IZ for impedances
+	{ Name Impedances_FS; Type Scalar;
+		BasisFunction {
+			{ Name sr; NameOfCoef ir; Function BF_Region; Support Omega_Cir; Entity Omega_Cir; }
+		}
+		GlobalQuantity {
+			{ Name Iz; Type AliasOf; NameOfCoef ir; }
+			{ Name Uz; Type AssociatedWith; NameOfCoef ir; }
+		}
+		Constraint {
+			{ NameOfCoef Uz; EntityType Region; NameOfConstraint Voltage_Cir; }
+			{ NameOfCoef Iz; EntityType Region; NameOfConstraint Current_Cir; }
+		}
+	}
 }
 
-
+// Dynamic Formulation (eddy currents)
 Formulation {
- {
-  Name H_Formulation; Type FemEquation;
-  Quantity
-  {
-   { Name H; Type Local; NameOfSpace H_FunctionSpace; }
-   { Name I_ct; Type Global; NameOfSpace H_FunctionSpace[I_ct]; }
-   { Name V_ct; Type Global; NameOfSpace H_FunctionSpace[V_ct]; }
-    { Name I_nt; Type Global; NameOfSpace network_FunctionSpace[I_nt]; }
-    { Name V_nt; Type Global; NameOfSpace network_FunctionSpace[V_nt]; }
-  }
-  Equation
-  {
-    Integral
-    {
-      [ rho[]*{d H}, {d H} ]; In Omega_C;
-      Jacobian JVol; Integration Integ;
-    }
-    Integral
-    {
-      DtDof[ mu[]*Dof{H}, {H} ]; In Omega;
-      Jacobian JVol; Integration Integ;
-    }
-   // Cuts
-   GlobalTerm { [Dof{V_ct},  {I_ct}]; In Cuts; }
-   // U = R * I in the resistance on the electrical circuit
-   GlobalTerm { NeverDt [ Dof{V_nt}, {I_nt} ]; In Resistance; }
-   GlobalTerm { NeverDt [ Rcl*Dof{I_nt}, {I_nt} ]; In Resistance; }
-   //~ GlobalTerm { [ 0. * Dof{I_nt} , {I_nt} ]; In Current_Cir; }
-   // Connections between the DoFs of the FEM and the network models
-   GlobalEquation
-   {
-    Type Network;
-    NameOfConstraint networkConstraint;
-    { Node {I_ct}; Loop {V_ct}; Equation {V_ct}; In Cuts; }
-    { Node {I_nt}; Loop {V_nt}; Equation {V_nt}; In Network; }
-   }
-  }
- }
+	{ Name AV_F; Type FemEquation;
+		Quantity {
+			{ Name a; Type Local; NameOfSpace A_FS; }
+
+			{ Name ir; Type Local; NameOfSpace J_FS; }
+			{ Name Us; Type Global; NameOfSpace J_FS [Us]; }
+			{ Name Is; Type Global; NameOfSpace J_FS [Is]; }
+
+			{ Name Uz; Type Global; NameOfSpace Impedances_FS [Uz]; }
+			{ Name Iz; Type Global; NameOfSpace Impedances_FS [Iz]; }
+		}
+		Equation {
+			Integral { [ nu[] * Dof{d a} , {d a} ]; In Omega_nf; Jacobian JVol; Integration Integ; }
+			If (Flag_NL)
+				Integral { [ nu[{d a}] * {d a} , {d a} ]; In Omega_nl; Jacobian JVol; Integration Integ; }
+				Integral { [ dhdb[{d a}] * Dof{d a} , {d a} ]; In Omega_nl; Jacobian JVol; Integration Integ; }
+				Integral { [ - dhdb[{d a}] * {d a} , {d a} ]; In Omega_nl; Jacobian JVol; Integration Integ; }
+			Else
+				Integral { [ nu[] * Dof{d a} , {d a} ]; In Omega_f; Jacobian JVol; Integration Integ; }
+			EndIf
+			
+			// js[0] should be of the form: N_coils[]/Ae_coils[] * Vector[0,0,1]
+			Integral { [ - (Je[] * Vector[0, 0, 1]) * Dof{ir} , {a} ]; In Omega_C; Jacobian JVol; Integration Integ; }
+			Integral { DtDof [ Dof{a} , {ir} ]; In Omega_C; Jacobian JVol; Integration Integ; }
+			Integral { 
+				[ 1  / sigma[] * ((Je[] * Vector[0, 0, 1]) * Dof{ir}) , {ir} ]; In Omega_C;
+				Jacobian JVol; Integration Integ;
+			}
+			
+			GlobalTerm { [ Dof{Us} / CoefGeos[] , {Is} ]; In Omega_C; }
+
+			GlobalTerm { NeverDt[ Dof{Uz} , {Iz} ]; In Resistance_Cir; }
+			GlobalTerm { NeverDt[ Resistance[] * Dof{Iz} , {Iz} ]; In Resistance_Cir; }
+
+			//GlobalTerm { [ Dof{Uz} , {Iz} ]; In Inductance_Cir; }
+			//GlobalTerm { DtDof [ Inductance[] * Dof{Iz} , {Iz} ]; In Inductance_Cir; }
+
+			GlobalTerm { [ 0. * Dof{Iz} , {Iz} ]; In Sources_Cir; }
+
+			GlobalEquation {
+				Type Network; NameOfConstraint ElectricalCircuit;
+				{ Node {Is}; Loop {Us}; Equation {Us}; In Omega_C; }
+				{ Node {Iz}; Loop {Uz}; Equation {Uz}; In Omega_Cir; }
+			}
+		}
+	}
 }
 
 
 Resolution {
-	{
- 		Name resolution;
-		System {{Name H_System; NameOfFormulation H_Formulation;}}
-		Operation
-		{
-      CreateDirectory["resu"]; // create directory to store result files
-      InitSolution[H_System]; // provide initial condition
-      TimeLoopTheta[t_ini, t_fin, dt, 0.5]{
-      // Euler implicit (1) -- Crank-Nicolson (0.5)
-        Generate[H_System]; Solve[H_System]; SaveSolution[H_System];
-        //~ Test[GetNumberRunTime[visualization]{"Output/PostProcessing/Visualization"}]{PostOperation[onFlightVisualization];}
-      }
+	{ Name resolution;
+		System {
+				{ Name AV_S; NameOfFormulation AV_F;
+				If(Flag_freq)
+					Type ComplexValue; Frequency freq;
+				EndIf
+				}
 		}
-  }
+		Operation {
+			CreateDirectory["resu"]; // create directory to store result files
+			If (Flag_freq)
+				Generate[AV_S]; Solve[AV_S]; SaveSolution[AV_S];
+			Else
+				InitSolution[AV_S]; // provide initial condition
+				TimeLoopTheta[t_ini, t_fin, dt, 1.]{
+				// Euler implicit (1) -- Crank-Nicolson (0.5)
+					Print[{$Time}, Format "Time %03g"]; 
+					If (NbrRegions[Omega_nl])
+						Generate[AV_S]; GetResidual[AV_S, $res0];
+						Evaluate[ $res = $res0, $iter = 0 ];
+						Print[{$iter, $res, $res / $res0},
+						Format "Residual %03g: abs %14.12e rel %14.12e"];
+						While[$res > NL_tol_abs && $res / $res0 > NL_tol_rel && $res / $res0 <= 1 && $iter < NL_iter_max]{
+							Solve[AV_S]; Generate[AV_S]; GetResidual[AV_S, $res];
+							Evaluate[ $iter = $iter + 1 ];
+							Print[{$iter, $res, $res / $res0},
+							Format "Residual %03g: abs %14.12e rel %14.12e"];
+						}
+					Else
+						Generate[AV_S]; Solve[AV_S];
+					EndIf
+					SaveSolution[AV_S];
+				}
+			EndIf
+		}
+	}
 }
 
 
 PostProcessing
 {
-    {
-        Name postProcessing;
-        NameOfFormulation H_Formulation;
-        NameOfSystem H_System;
-        Quantity
-        {
-            {Name currentDensity; Value{Local{[{d H}]; In Omega_C; Jacobian JVol;}}}
-            {Name magneticFluxDensityM; Value{Local{[ mu[]*Norm[{H}] ]; In Omega; Jacobian JVol;}}}
-            {Name magneticFluxDensityV; Value{Local{[ mu[]*{H} ]; In Omega; Jacobian JVol;}}}
-            For i In{1:nbw}
-              {Name In_ct~{i}; Value{Term{[ {I_ct} ]; In Cutn~{i};}}}
-              {Name Vn_ct~{i}; Value{Term{[ {V_ct} ]; In Cutn~{i};}}}
-              {Name Zn_ct~{i}; Value{Term{[ {V_ct}/{I_ct} ]; In Cutn~{i};}}}
-              {Name current~{i}; Value{Integral{[ CompZ[{d H}] ]; In Omega_Cn~{i}; Jacobian JVol; Integration Integ;}}}
-            EndFor
-            {Name totalCurrent; Value{Integral{[ CompZ[{d H}] ]; In Omega_C; Jacobian JVol; Integration Integ;}}}
-            {Name losses; Value{Integral{[ rho[]*SquNorm[{d H}] ]; In Omega_C; Jacobian JVol; Integration Integ;}}}
-        }
-    }
+	{
+		Name postProcessing;
+		NameOfFormulation AV_F;
+		NameOfSystem AV_S;
+		Quantity
+		{
+			{ Name A; Value { Local { [Norm[{a}]]; In Omega; Jacobian JVol; } } }
+			{ Name B; Value { Local { [Norm[{d a}]]; In Omega; Jacobian JVol; } } }
+			{ Name J; Value { Term { [ (Je[] * Vector[0, 0, 1]) * {ir} ]; In Omega_C; Jacobian JVol; } } }
+			{ Name vecA; Value { Local{ [{a}]; In Omega; Jacobian JVol; } } }
+			{ Name vecB; Value { Local{ [{d a}]; In Omega; Jacobian JVol; } } }
+			{ Name Flux; Value { Integral { [ CoefGeos[] * CompZ[{a}] ]; 
+				In Omega_C; Jacobian JVol; Integration Integ; } } }
+		}
+	}
 }
 
 PostOperation
 {
-    {
-        Name postOperation;
-        NameOfPostProcessing postProcessing;
-        Operation
-        {
-          If (eco_pos == 1)
-            Print[losses[Omega_C], OnGlobal, Format TimeTable, File "resu/losses.dat", Name "Q (W)" ];
-            Print[totalCurrent[Omega_C], OnGlobal, Format TimeTable, File "resu/totalCurrent.dat", Name "Total current (A-turns)"]; 
-            Print[currentDensity, OnElementsOf Omega_C, File "resu/currentDensity.pos", Name "J (A-m⁻²)"];
-            Print[magneticFluxDensityM, OnElementsOf Omega, File "resu/magneticFluxDensityM.pos", Name "|B| (T)"];
-            Print[magneticFluxDensityV, OnElementsOf Omega, File "resu/magneticFluxDensityV.pos", Name "B (T)"];
-          Else
-            Print[magneticFluxDensityM, OnElementsOf Omega, File "resu/magneticFluxDensityM.pos", Name "|B| (T)"];
-            Print[magneticFluxDensityV, OnElementsOf Omega, File "resu/magneticFluxDensityV.pos", Name "B (T)"];
-            Print[magneticFluxDensityX, OnElementsOf Omega, File "resu/magneticFluxDensityX.pos", Name "|BX| (T)"];
-            Print[magneticFluxDensityY, OnElementsOf Omega, File "resu/magneticFluxDensityY.pos", Name "|BY| (T)"];
-            Print[currentDensity, OnElementsOf Omega_C, File "resu/currentDensity.pos", Name "J (A-m⁻²)"];
-            Print[magneticFluxDensityA[Omega_C], OnGlobal, Format TimeTable, File "resu/magneticFluxDensityA.dat", Name "B_{av} (T)" ];
-            Print[totalCurrent[Omega_C], OnGlobal, Format TimeTable, File "resu/totalCurrent.dat", Name "Total current (A-turns)"];
-            Print[losses[Omega_C], OnGlobal, Format TimeTable, File "resu/losses.dat", Name "Q (W)" ];
-            For i In{1:nbw}
-              Print[I_ct~{i}, OnRegion Cutn~{i}, Format TimeTable, File "resu/Icut_", AppendExpressionToFileName i, AppendExpressionFormat "%g.dat"];
-              Print[V_ct~{i}, OnRegion Cutn~{i}, Format TimeTable, File "resu/Vcut_", AppendExpressionToFileName i, AppendExpressionFormat "%g.dat"];
-              Print[Z_ct~{i}, OnRegion Cutn~{i}, Format TimeTable, File "resu/Zcut_", AppendExpressionToFileName i, AppendExpressionFormat "%g.dat"];
-              Print[current~{i}[Omega_Cn~{i}], OnGlobal, Format TimeTable, File "resu/current_", AppendExpressionToFileName i, AppendExpressionFormat "%g.dat"];
-            EndFor
-          EndIf
-        }
-    }
-    {
-        Name onFlightVisualization;
-        NameOfPostProcessing postProcessing;
-				LastTimeStepOnly visualization;
-        Operation
-        {
-            If (eco_pos == 1)
-              Print[losses[Omega_C], OnGlobal, Format Table, LastTimeStepOnly, File > "resu/losses.dat", SendToServer "Output/PostProcessing/1Losses (W)", Color "Red" ];
-              Print[currentDensity, OnElementsOf Omega_C, File "resu/currentDensity.pos", Name "J (A-m⁻²)"];
-              Print[magneticFluxDensityM, OnElementsOf Omega, File "resu/magneticFluxDensityM.pos", Name "|B| (T)"];
-              Print[magneticFluxDensityV, OnElementsOf Omega, File "resu/magneticFluxDensityV.pos", Name "B (T)"];
-            Else
-              Print[currentDensity, OnElementsOf Omega_C, File "resu/currentDensity.pos", Name "J (A-m⁻²)"];
-              Print[magneticFluxDensityM, OnElementsOf Omega, File "resu/magneticFluxDensityM.pos", Name "|B| (T)"];
-              Print[totalCurrent[Omega_C], OnGlobal, Format TimeTable, LastTimeStepOnly, File "resu/lastTimeStep-totalCurrent.dat", SendToServer "Output/PostProcessing/0Total current (A-turns)", Color "Yellow"];
-              Print[losses[Omega_C], OnGlobal, Format Table, LastTimeStepOnly, File > "resu/losses.dat", SendToServer "Output/PostProcessing/1Losses (W)", Color "Red" ];
-            EndIf
-        }
-    }
+	{
+		Name postOperation;
+		NameOfPostProcessing postProcessing;
+		Operation
+		{
+			Print[A, OnElementsOf Omega, File "resu/magneticVectorPotential.pos", Name "|A| (T-m)"];
+			Print[vecA, OnElementsOf Omega, File "resu/magneticVectorPotentialVector.pos", Name "A (T)"];
+			// Add "Smoothing" to be able to see the isolines, does not provide time dependent results
+			Print[B, OnElementsOf Omega, File "resu/magneticFluxDensity.pos", Name "|B| (T)"];
+			Print[vecB, OnElementsOf Omega, File "resu/magneticFluxDensityVector.pos", Name "B (T)"];
+			Print[J, OnElementsOf Omega_C, File "resu/currentDensities.pos", Name "Je (A-m^-2)"];
+		}
+	}
 }
-
-If (flag_restart == 0)
-  DefineConstant[ C_ = {"-solve -bin -v 3 -v2 -cpu", Name "GetDP/9ComputeCommand", Visible 1} ];
-Else
-  DefineConstant[ C_ = {"-solve -bin -v 3 -v2 -cpu -restart", Name "GetDP/9ComputeCommand", Visible 1} ];
-EndIf
