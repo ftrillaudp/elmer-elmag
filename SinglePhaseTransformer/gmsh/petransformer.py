@@ -62,10 +62,13 @@ layer2height = (nbturns_2-1) * distancecenterstrands
 xposstrand_1n = (-1)*xposstrand_1p
 xposstrand_2n = (-1)*xposstrand_2p
 
+### Number of wires
 nbw = nbturns_1+nbturns_2
 
+### Mesh sizes, defined on nodes
 lc_1 = coreheight / 50
 lc_2 = shellRadius / 10
+lc_3 = strandRadius / 10
 
 ### Get the tags for dimtags list
 def get_gdimtags(dimtags, gdim):
@@ -110,35 +113,48 @@ if mesh_comm.rank == model_rank:
 	
 	strands = strands_p+strands_n
 	
+	### Air
 	airbulk = cascade.addDisk(0., 0., 0., airRadius, airRadius)
 	air = cascade.cut([(gdim, airbulk)], core[0]+[(gdim, i) for i in range(strands[0], strands[-1]+1)], removeObject = True, removeTool = False)
 	air_tags = get_gdimtags(air[0], gdim)
 	
+	### Shell
 	shellbulk = cascade.addDisk(0., 0., 0., shellRadius, shellRadius)
 	shell = cascade.cut([(gdim, shellbulk)], [(gdim, i) for i in air_tags]+ \
 		[(gdim, i) for i in core_tags]+[(gdim, i) for i in strands], \
 		removeObject = True, removeTool = False)
 	shell_tags = get_gdimtags(shell[0], gdim)
 	
+	### Remove duplicates
 	cascade.removeAllDuplicates
 	
+	### Symchronize OCCT with Gmsh
 	cascade.synchronize()
-	
-	meshing.setSize(mod.getEntities(0), lc_1)
-	shell_surfNodes = mod.getBoundary([shell[0][0]], combined=True, oriented=False, recursive=True)
-	meshing.setSize(shell_surfNodes, lc_2)
-	
+
+	### Boundaries (gdim-1)
 	shell_surf = mod.getBoundary([shell[0][0]], combined=True, oriented=False, recursive=False)
 	shell_dt = get_gdimtags(shell_surf, gdim-1)
 	
-	strandsp_surfNodes = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_p)], combined=True, oriented=False, recursive=False)
-	strandsp_surfNodes_tags = get_gdimtags(strandsp_surfNodes, gdim-1)
-	strandsn_surfNodes = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_n)], combined=True, oriented=False, recursive=False)
-	strandsn_surfNodes_tags = get_gdimtags(strandsn_surfNodes, gdim-1)
+	strandsp_surf = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_p)], combined=True, oriented=False, recursive=False)
+	strandsp_surf_tags = get_gdimtags(strandsp_surf, gdim-1)
+	strandsn_surf = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_n)], combined=True, oriented=False, recursive=False)
+	strandsn_surf_tags = get_gdimtags(strandsn_surf, gdim-1)
 
+	### Mesh sizes (gdim-2)
+	meshing.setSize(mod.getEntities(0), lc_1)
+	shell_surfNodes = mod.getBoundary([shell[0][0]], combined=True, oriented=False, recursive=True)
+	meshing.setSize(shell_surfNodes, lc_2)
+
+	strandsp_surfNodes = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_p)], combined=True, oriented=False, recursive=True)
+	meshing.setSize(strandsp_surfNodes, lc_3)
+	strandsn_surfNodes = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_n)], combined=True, oriented=False, recursive=True)
+	meshing.setSize(strandsn_surfNodes, lc_3)
+
+	### Remove duplicate nodes and elements
 	meshing.removeDuplicateNodes
 	meshing.removeDuplicateElements
-	
+
+	### Define group of geometries and ID
 	k = 0
 	mod.addPhysicalGroup(gdim, core_tags, k+1, name="core")
 	mod.addPhysicalGroup(gdim, air_tags, k+2, name="air")
@@ -164,13 +180,13 @@ if mesh_comm.rank == model_rank:
 	
 	k = k+i+1
 	edgewiresp_tags = list()
-	for i, v in enumerate(strandsp_surfNodes_tags):
+	for i, v in enumerate(strandsp_surf_tags):
 		mod.addPhysicalGroup(gdim-1, [v], k+i+1, name="edgewirep_"+str(i+1))
 		edgewiresp_tags.append(k+i+1)
 	
 	k = k+i+1
 	edgewiresn_tags = list()
-	for i, v in enumerate(strandsn_surfNodes_tags):
+	for i, v in enumerate(strandsn_surf_tags):
 		mod.addPhysicalGroup(gdim-1, [v], k+i+1, name="edgewiren_"+str(i+1))
 		edgewiresn_tags.append(k+i+1)
 	k = k+i+1
