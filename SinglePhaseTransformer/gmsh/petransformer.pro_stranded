@@ -1,7 +1,7 @@
 /*
 Author: F. Trillaud <ftrillaudp@gmail.com>
 Date: June 2025
-NB: Based on inductor example by C. Geuzaine and model library: Lib_Magnetodynamcis2D_av_Cir.pro
+NB: Based on inductor example by C. Geuzaine
 */
 
 Include "petransformer.par";
@@ -35,10 +35,6 @@ Gamma_C = Region[{Gamma_Cp, Gamma_Cn}];
 Core = Region[{coreID}];
 Omega_C += Region[{Core}];
 
-/// Massive (M), stranded (S) codnuctors
-Omega_C_M = Region[{Omega_C}];
-Omega_C_S = Region[{ }];
-
 /// Air domain
 Shell = Region[{shellID}];
 Air = Region[{airID, shellID}];
@@ -66,11 +62,11 @@ Omega = Region[{Omega_C, Omega_CC}];
 Gamma_dirichlet = Region[{boundaryID}];
 
 /// Component regions for circuit model
-Resistance_Cir  = Region[{ }]; // all resistances
-Inductance_Cir  = Region[{ }] ; // all inductances
-Capacitance_Cir = Region[{ }] ; // all capacitances
-SourceV_Cir = Region[{ }]; // all voltage sources
-SourceI_Cir = Region[{ }]; // all current sources
+Resistance_Cir  = Region[{}]; // all resistances
+Inductance_Cir  = Region[{}] ; // all inductances
+Capacitance_Cir = Region[{}] ; // all capacitances
+SourceV_Cir = Region[{}]; // all voltage sources
+SourceI_Cir = Region[{}]; // all current sources
 
 /// Circuit
 ///  _____ PS ______ R _________________________
@@ -115,7 +111,7 @@ vDir[Core] = 1;
 
 freq = 60.; // frequency
 w = 2*Pi*freq; // pulsation
-Je[Omega_C_S] = Vector[0, 0, vDir[]]; // Direction of engineering current density
+Je[Omega_C] = Vector[0, 0, vDir[]]; // Direction of engineering current density
 
 /// Time data
 t_ini = 0;
@@ -132,7 +128,7 @@ CoefGeos[Omega_C] = vDir[] * corethickness;
 val_V_ps = 10.;
 phase_V_ps = 0. * deg2rad;
 /// Resistance value of the circuit
-Resistance[R_1] = 1.0;
+Resistance[R_1] = 3.7;
 
 /// Definiton of the electrical conductivity for the wires (Cu at 300 K)
 sigma[Omega_Cp] = 5.79e7;
@@ -156,15 +152,16 @@ Include "jacobian.pro";
 
 Constraint
 {
-	{ Name A_constraint; Type Assign; Case { { Region Gamma_dirichlet; Value 0.0; } } }
+	{ Name A_constraint; Type Assign;
+		Case { { Region Gamma_dirichlet; Value 0.0; } }
+	}
 	{ Name Current_2D; Case { } }
 	{ Name Voltage_2D; Case { { Region Core; Value 0; } } }
 	{ Name Current_Cir; Case { } }
 	{ Name Voltage_Cir;
 		Case {
-				{ 	
-					Region V_ps; 
-					Value val_V_ps; TimeFunction F_Sin_wt_p[]{w, phase_V_ps}; // Sine function
+				{	Region V_ps; Value val_V_ps; 
+					TimeFunction F_Sin_wt_p[]{w, phase_V_ps}; // Sine function
 				}
 		}
 	}
@@ -185,49 +182,61 @@ Constraint
 								//~ Printf("k3", k3); Printf("k4", 1);
 							EndIf
 						EndFor
+						//~ { Region Omega_Cp_1; Branch{3, 4}; }
+						//~ { Region Omega_Cp_2; Branch{4, 5}; }
+						//~ { Region Omega_Cp_3; Branch{5, 6}; }
+						//~ { Region Omega_Cp_4; Branch{6, 7}; }
+						//~ { Region Omega_Cp_5; Branch{7, 8}; }
+						//~ { Region Omega_Cp_6; Branch{8, 9}; }
+						//~ { Region Omega_Cp_7; Branch{9, 10}; }
+						//~ { Region Omega_Cp_8; Branch{10, 11}; }
+						//~ { Region Omega_Cp_9; Branch{11, 12}; }
+						//~ { Region Omega_Cp_10; Branch{12, 13}; }
+						//~ { Region Omega_Cp_11; Branch{13, 14}; }
+						//~ { Region Omega_Cp_12; Branch{14, 15}; }
+						//~ { Region Omega_Cp_13; Branch{15, 16}; }
+						//~ { Region Omega_Cp_14; Branch{16, 17}; }
+						//~ { Region Omega_Cp_15; Branch{17, 18}; }
+						//~ { Region Omega_Cp_16; Branch{18, 19}; }
+						//~ { Region Omega_Cp_17; Branch{19, 20}; }
+						
+						//~ { Region Omega_Cn_1; Branch{20, 21}; }
+						//~ { Region Omega_Cn_2; Branch{21, 22}; }
+						//~ { Region Omega_Cn_3; Branch{22, 23}; }
+						//~ { Region Omega_Cn_4; Branch{23, 24}; }
+						//~ { Region Omega_Cn_5; Branch{24, 25}; }
+						//~ { Region Omega_Cn_6; Branch{25, 26}; }
+						//~ { Region Omega_Cn_7; Branch{26, 27}; }
+						//~ { Region Omega_Cn_8; Branch{27, 28}; }
+						//~ { Region Omega_Cn_9; Branch{28, 29}; }
+						//~ { Region Omega_Cn_10; Branch{29, 30}; }
+						//~ { Region Omega_Cn_11; Branch{30, 31}; }
+						//~ { Region Omega_Cn_12; Branch{31, 32}; }
+						//~ { Region Omega_Cn_13; Branch{32, 33}; }
+						//~ { Region Omega_Cn_14; Branch{33, 34}; }
+						//~ { Region Omega_Cn_15; Branch{34, 35}; }
+						//~ { Region Omega_Cn_16; Branch{35, 36}; }
+						//~ { Region Omega_Cn_17; Branch{36, 1}; }
 		}
 	}
 }
 
 
-/// A formulation
 FunctionSpace {
 	{ Name A_FS; Type Form1P;
 		BasisFunction {
-			{ Name s_n; NameOfCoef a_n; Function BF_PerpendicularEdge; Support Omega; Entity NodesOf[All]; }
-			{ Name s_e; NameOfCoef a_e; Function BF_PerpendicularEdge_2E; Support Omega; Entity EdgesOf[All]; }
+			{ Name s_n; NameOfCoef a_n; Function BF_PerpendicularEdge;
+			Support Omega; Entity NodesOf[All]; 
+			}
 		}
 		Constraint {
 			{ NameOfCoef a_n; EntityType NodesOf; NameOfConstraint A_constraint; }
-			{ NameOfCoef a_e; EntityType EdgesOf; NameOfConstraint A_constraint; }
 		}
 	}
-}
-
-/// Massive conductors: e = -Grad(V)
-FunctionSpace {
-
-	{ Name U_FS; Type Form1P;
-		BasisFunction {
-			{ Name sr; NameOfCoef ur; Function BF_RegionZ; Support Omega_C_M; Entity Omega_C_M; }
-		}
-		GlobalQuantity {
-			{ Name U; Type AliasOf; NameOfCoef ur; }
-			{ Name I; Type AssociatedWith; NameOfCoef ur; }
-		}
-		Constraint {
-			{ NameOfCoef U; EntityType Region; NameOfConstraint Voltage_2D; }
-			{ NameOfCoef I;	EntityType Region; NameOfConstraint Current_2D; }
-		}
-	}
-}
-
-/// Stranded conductors
-FunctionSpace {
-
+	/// Current in stranded coil (2D)
 	{ Name J_FS; Type Vector;
 		BasisFunction {
-			{ Name sr; NameOfCoef ir; Function BF_RegionZ; Support Omega_C_S; Entity Omega_C_S; }
+			{ Name sr; NameOfCoef ir; Function BF_RegionZ; Support Omega_C; Entity Omega_C; }
 		}
 		GlobalQuantity {
 			{ Name Is; Type AliasOf; NameOfCoef ir; }
@@ -238,10 +247,7 @@ FunctionSpace {
 			{ NameOfCoef Is; EntityType Region; NameOfConstraint Current_2D; }
 		}
 	}
-}
-
-/// UZ and IZ for impedances
-FunctionSpace {
+	/// UZ and IZ for impedances
 	{ Name Impedances_FS; Type Scalar;
 		BasisFunction {
 			{ Name sr; NameOfCoef ir; Function BF_Region; Support Omega_Cir; Entity Omega_Cir; }
@@ -264,11 +270,7 @@ Formulation {
 		Quantity {
 			{ Name a; Type Local; NameOfSpace A_FS; }
 
-			{ Name ur; Type Local; NameOfSpace U_FS; }
-			{ Name I; Type Global; NameOfSpace U_FS [I]; }
-			{ Name U; Type Global; NameOfSpace U_FS [U]; }
-			
-		    { Name ir; Type Local; NameOfSpace J_FS; }
+			{ Name ir; Type Local; NameOfSpace J_FS; }
 			{ Name Us; Type Global; NameOfSpace J_FS [Us]; }
 			{ Name Is; Type Global; NameOfSpace J_FS [Is]; }
 
@@ -285,25 +287,18 @@ Formulation {
 				Integral { [ nu[] * Dof{d a} , {d a} ]; In Omega_f; Jacobian JVol; Integration Integ; }
 			EndIf
 			
-			/// Massive conductors: e = -Dt[{a}]-{ur}, with {ur} = Grad(v) constant in each region of Massive conductors
-			Integral { DtDof [ sigma[] * Dof{a} , {a} ]; In Omega_C_M; Jacobian JVol; Integration Integ; }
-			Integral { [ sigma[] * Dof{ur} / CoefGeos[] , {a} ]; In Omega_C_M; Jacobian JVol; Integration Integ; }
-			Integral { DtDof [ sigma[] * Dof{a} , {ur} ]; In Omega_C_M; Jacobian JVol; Integration Integ; }
-			Integral { [ sigma[] * Dof{ur} / CoefGeos[] , {ur} ]; In Omega_C_M; Jacobian JVol; Integration Integ; }
+			Integral { DtDof [ sigma[] * Dof{a} , {a} ]; In Omega_C; Jacobian JVol; Integration Integ; }
 			
-			/// Stranded conductors: Je * Vector[0,0,1]
-			Integral { [ - (Je[] * Vector[0, 0, 1]) * Dof{ir} , {a} ]; In Omega_C_S; Jacobian JVol; Integration Integ; }
-			Integral { DtDof [ Dof{a} , {ir} ]; In Omega_C_S; Jacobian JVol; Integration Integ; }
+			/// js[0] should be of the form: Je * Vector[0,0,1]
+			Integral { [ - (Je[] * Vector[0, 0, 1]) * Dof{ir} , {a} ]; In Omega_C; Jacobian JVol; Integration Integ; }
+			Integral { DtDof [ Dof{a} , {ir} ]; In Omega_C; Jacobian JVol; Integration Integ; }
 			Integral { 
-				[ 1  / sigma[] * ((Je[] * Vector[0, 0, 1]) * Dof{ir}) , {ir} ]; In Omega_C_S;
+				[ 1  / sigma[] * ((Je[] * Vector[0, 0, 1]) * Dof{ir}) , {ir} ]; In Omega_C;
 				Jacobian JVol; Integration Integ;
 			}
 			
-			/// Coupling FEM-circuits
-			/// Massive conductors
-			GlobalTerm { [ Dof{I} *(CoefGeos[]/Fabs[CoefGeos[]]) , {U} ]; In Omega_C_M; }
-			/// Stranded conductors
-			GlobalTerm { [ Dof{Us} / CoefGeos[] , {Is} ]; In Omega_C_S; }
+			/// Inductor
+			GlobalTerm { [ Dof{Us} / CoefGeos[] , {Is} ]; In Omega_C; }
 			/// Resistances
 			GlobalTerm { NeverDt[ Dof{Uz} , {Iz} ]; In Resistance_Cir; }
 			GlobalTerm { NeverDt[ Resistance[] * Dof{Iz} , {Iz} ]; In Resistance_Cir; }
@@ -313,11 +308,9 @@ Formulation {
 			/// Current sources
 			GlobalTerm { [ 0. * Dof{Iz} , {Iz} ]; In Sources_Cir; }
 
-			/// Circuit equations
 			GlobalEquation {
 				Type Network; NameOfConstraint ElectricalCircuit;
-				{ Node {I};  Loop {U};  Equation {I};  In Omega_C_M; }
-				{ Node {Is}; Loop {Us}; Equation {Us}; In Omega_C_S; }
+				{ Node {Is}; Loop {Us}; Equation {Us}; In Omega_C; }
 				{ Node {Iz}; Loop {Uz}; Equation {Uz}; In Omega_Cir; }
 			}
 		}
@@ -377,12 +370,7 @@ PostProcessing
 		{
 			{ Name A; Value { Local { [Norm[{a}]]; In Omega; Jacobian JVol; } } }
 			{ Name B; Value { Local { [Norm[{d a}]]; In Omega; Jacobian JVol; } } }
-			{ Name J; 
-				Value { 
-						Term { [ (Je[] * Vector[0, 0, 1]) * {ir} ]; In Omega_C_S; Jacobian JVol; }
-						Term { [ -sigma[] * (Dt[{a}]+{ur}/CoefGeos[]) ]; In Omega_C_M; Jacobian JVol; }
-				}
-			}
+			{ Name J; Value { Term { [ (Je[] * Vector[0, 0, 1]) * {ir} ]; In Omega_C; Jacobian JVol; } } }
 			{ Name vecA; Value { Local{ [{a}]; In Omega; Jacobian JVol; } } }
 			{ Name vecB; Value { Local{ [{d a}]; In Omega; Jacobian JVol; } } }
 			{ Name Flux; Value { Integral { [ CoefGeos[] * CompZ[{a}] ]; 
