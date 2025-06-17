@@ -27,6 +27,7 @@ gmsh.option.setColor("General.BackgroundGradient", 255, 255, 255)
 gmsh.option.setNumber('Mesh.Optimize', 1)
 gmsh.option.setNumber('Mesh.OptimizeNetgen', 1)
 gmsh.option.setNumber('Mesh.Algorithm3D', 10)
+gmsh.option.setNumber('Mesh.OptimizeThreshold', 0.3)
 
 ### Model dimension
 gdim = 2
@@ -45,6 +46,7 @@ corecentrallegwidth = 0.019
 corelegwidth = 0.5*(corewidth-(corecentrallegwidth+2*coreaperturewidth))
 airRadius = 0.075
 shellRadius = 1.2*airRadius
+filletRadius = 0.002
 
 strandRadius = 0.0018
 nbturns_1 = 9
@@ -69,6 +71,7 @@ nbw = nbturns_1+nbturns_2
 lc_1 = coreheight / 50
 lc_2 = shellRadius / 10
 lc_3 = strandRadius / 10
+lc_4 = strandRadius / 2
 
 ### Get the tags for dimtags list
 def get_gdimtags(dimtags, gdim):
@@ -125,11 +128,14 @@ if mesh_comm.rank == model_rank:
 		removeObject = True, removeTool = False)
 	shell_tags = get_gdimtags(shell[0], gdim)
 	
+	# ~ cascade.fillet2D(1, 2, filletRadius)
+	
 	### Remove duplicates
 	cascade.removeAllDuplicates
 	
 	### Symchronize OCCT with Gmsh
 	cascade.synchronize()
+
 
 	### Boundaries (gdim-1)
 	shell_surf = mod.getBoundary([shell[0][0]], combined=True, oriented=False, recursive=False)
@@ -149,6 +155,25 @@ if mesh_comm.rank == model_rank:
 	meshing.setSize(strandsp_surfNodes, lc_3)
 	strandsn_surfNodes = mod.getBoundary([(gdim, v) for i, v in enumerate(strands_n)], combined=True, oriented=False, recursive=True)
 	meshing.setSize(strandsn_surfNodes, lc_3)
+	
+	core_surfNodes = mod.getBoundary(core[0], combined=True, oriented=False, recursive=True)
+	core_edgeNodes = mod.getBoundary(core_surfNodes, combined=True, oriented=False, recursive=True)
+	meshing.setSize(core_edgeNodes, lc_4)
+	core_surfNodes_tags = get_gdimtags(core_surfNodes, gdim-1)
+	core_edgeNodes_tags = get_gdimtags(core_edgeNodes, gdim-2)
+	
+	# ~ meshing.field.add("Distance", 1)
+	# ~ meshing.field.setNumbers(1, "PointsList", core_edgeNodes_tags)
+	# ~ meshing.field.setNumbers(1, "CurvesList", core_surfNodes_tags)
+	# ~ meshing.field.setNumber(1, "Sampling", 100)
+	
+	# ~ meshing.field.add("Threshold", 2)
+	# ~ meshing.field.setNumber(2, "InField", 1)
+	# ~ meshing.field.setNumber(2, "SizeMin", lc_4)
+	# ~ meshing.field.setNumber(2, "SizeMax", lc_1)
+	# ~ meshing.field.setNumber(2, "DistMin", 0.001)
+	# ~ meshing.field.setNumber(2, "DistMax", 0.01)
+
 
 	### Remove duplicate nodes and elements
 	meshing.removeDuplicateNodes
@@ -191,11 +216,11 @@ if mesh_comm.rank == model_rank:
 		edgewiresn_tags.append(k+i+1)
 	k = k+i+1
 	
-	domain_tags = domain_tags+wires_tags
-	for i, v in enumerate(wires_tags):
-		idx = domain_tags.index(v)
-		meshing.addHomologyRequest("Cohomology", domain_tags[:idx]+domain_tags[idx+1:], [], [gdim-1])
-	meshing.computeHomology
+	# ~ domain_tags = domain_tags+wires_tags
+	# ~ for i, v in enumerate(wires_tags):
+		# ~ idx = domain_tags.index(v)
+		# ~ meshing.addHomologyRequest("Cohomology", domain_tags[:idx]+domain_tags[idx+1:], [], [gdim-1])
+	# ~ meshing.computeHomology
 	
 	### Colors
 	mod.setColor(core[0], 60, 60, 60, recursive=False)
@@ -206,7 +231,7 @@ if mesh_comm.rank == model_rank:
 	mod.setColor([(gdim, i) for i in range(strands_n[0], strands_n[-1]+1)], 255, 150, 50, recursive=False)
 	
 	meshing.generate(gdim)
-	
+
 	gmsh.write(name+".msh")
 
 # Launch the GUI to see the results:

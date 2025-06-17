@@ -35,7 +35,7 @@ Gamma_C = Region[{Gamma_Cp, Gamma_Cn}];
 Core = Region[{coreID}];
 Omega_C += Region[{Core}];
 
-/// Massive (M), stranded (S) codnuctors
+/// Massive (M), stranded (S) conductors
 Omega_C_M = Region[{Omega_C}];
 Omega_C_S = Region[{ }];
 
@@ -158,7 +158,8 @@ Constraint
 {
 	{ Name A_constraint; Type Assign; Case { { Region Gamma_dirichlet; Value 0.0; } } }
 	{ Name Current_2D; Case { } }
-	{ Name Voltage_2D; Case { { Region Core; Value 0; } } }
+	{ Name Voltage_2D; Case { { Region Core; Value 0.0
+		; } } }
 	{ Name Current_Cir; Case { } }
 	{ Name Voltage_Cir;
 		Case {

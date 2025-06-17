@@ -105,9 +105,9 @@ w = 2*Pi*freq; // pulsation
 Je[Coils] = ((N_coils[] / Ae_coils[]) * Vector[0, 0, vDir[]]); // Engineering current density: F_Sin_wt_p[]{w,phase};
 
 t_ini = 0;
-nbp = 1; // Number of periods
+nbp = 2; // Number of periods
 t_fin = nbp /freq;
-nbs = 100; // Number of time steps
+nbs = 500; // Number of time steps
 dt = t_fin / nbs;
 
 Nb_max_iter = 50;
@@ -126,7 +126,7 @@ CoefGeos[Coils] = vDir[] * corethickness;
 deg2rad = Pi/180; // degrees to radiants
 // Input RMS voltage (half of the voltage because of symmetry; half coils are
 // defined!)
-val_V_HV = 100.;
+val_V_HV = 127.;
 phase_V_HV = 0. * deg2rad;
 
 // High value for an open-circuit test; Low value for a short-circuit test;
