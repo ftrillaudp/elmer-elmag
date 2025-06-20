@@ -407,6 +407,8 @@ PostOperation
 			// Add "Smoothing" to be able to see the isolines, does not provide time dependent results
 			Print[B, OnElementsOf Omega, File "resu/magneticFluxDensity.pos", Name "|B| (T)"];
 			Print[vecB, OnElementsOf Omega, File "resu/magneticFluxDensityVector.pos", Name "B (T)"];
+			Print[B, OnElementsOf Omega_f, File "resu/magneticFluxDensityCore.pos", Name "|B| (T)"];
+			Print[vecB, OnElementsOf Omega_f, File "resu/magneticFluxDensityVectorCore.pos", Name "B (T)"];
 			Print[J, OnElementsOf Omega_C, File "resu/currentDensities.pos", Name "Je (A-m^-2)"];
 		}
 	}
