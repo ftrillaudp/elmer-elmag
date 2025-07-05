@@ -62,4 +62,4 @@ def double_helix(R_1, R_2, R_3, a, x_in, para):
 	# A bit of cleaning 
 	occ.remove([(2, 6000), (1, 1000), (1, 1001)]+[(0, v) for i, v in enumerate(p)])
 	
-	return winding
+	return [winding, p]

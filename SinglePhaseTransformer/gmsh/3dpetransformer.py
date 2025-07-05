@@ -84,8 +84,8 @@ x_in = 2*R_2
 # Mesh size
 lc_1 = R_1 / 6
 
-### Winding
-winding = double_helix(R_1, R_2, R_3, a, x_in, para)
+### Winding and ID of points to build helix
+[winding, p] = double_helix(R_1, R_2, R_3, a, x_in, para)
 
 ### Core
 corebulk = occ.addBox(-0.5*corewidth, -0.5*corethickness, -0.5*coreheight, corewidth, corethickness, coreheight,  3)
@@ -108,10 +108,22 @@ occ.synchronize()
 
 meshing.setSize(mod.getEntities(0), lc_1)
 
+# ~ print("point", meshing.getNodes(gdim-3, p[1]))
+print("point", p)
 
 air_surf = mod.getBoundary(air[0], combined=False, oriented=False, recursive=False)
 print("air_surf", air_surf)
 airsurf_tags = get_gdimtags(air_surf, gdim-1)
+
+
+
+# ~ cm_l, terminal = list(), list()
+# ~ for i in range(len(airsurf_tags)):
+	# ~ cm_l.append(occ.getCenterOfMass(gdim-1, airsurf_tags[i]))
+	# ~ coinc = mod.isInside(gdim-1, airsurf_tags[i], p[0], parametric = False)
+	# ~ if ((coinc == 1) or (cm_l[i][0] == 0)):
+		# ~ terminal.append(airsurf_tags[i])
+# ~ print("Terminal", terminal)
 
 mod.addPhysicalGroup(gdim, [1], 1, name="Winding")
 mod.addPhysicalGroup(gdim, [2, 3], 2, name="Core")
@@ -142,6 +154,15 @@ if '-nopopup' not in sys.argv:
     gmsh.fltk.run()
 
 gmsh.finalize()
+
+	# ~ cm_l, boundary = list(), list()
+	# ~ vec = [0., Rs, 0.]
+	# ~ for i in range(len(bnd_t)):
+		# ~ cm_l.append(cascade.getCenterOfMass(gdim-1, bnd_t[i]))
+		# ~ coinc = mod.isInside(gdim-1, bnd_t[i], vec, parametric = False)
+		# ~ if ((coinc == 1) or (cm_l[i][0] == 0)):
+			# ~ boundary.append(bnd_t[i])
+
 
 # Build the input file for the solver	
 # ~ myFile0 = open(name+".par", "w")
