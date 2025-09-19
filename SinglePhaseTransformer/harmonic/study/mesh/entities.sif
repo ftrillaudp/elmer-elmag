@@ -1,0 +1,26 @@
+!------ Skeleton for body section -----
+Body 1
+  Name = core
+End
+
+Body 2
+  Name = air
+End
+
+Body 3
+  Name = shell
+End
+
+Body 4
+  Name = wirep
+End
+
+Body 5
+  Name = wiren
+End
+
+!------ Skeleton for boundary section -----
+Boundary Condition 1
+  Name = boundary
+End
+

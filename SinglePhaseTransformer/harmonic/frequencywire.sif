@@ -104,6 +104,7 @@ Material 2
   Name = "Iron"
   Relative Permittivity = Real 1.0
   Electric Conductivity = Real 1000.0
+  Relative Permeability = Real 1500
 
 !~   H-B Curve = Variable "dummy"
 !~     Real Cubic Monotone
