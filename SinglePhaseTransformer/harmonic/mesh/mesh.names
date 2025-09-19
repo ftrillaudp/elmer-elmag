@@ -1,0 +1,8 @@
+! ----- names for bodies -----
+$ core = 1
+$ air = 2
+$ shell = 3
+$ wirep = 5
+$ wiren = 6
+! ----- names for boundaries -----
+$ boundary = 4
